@@ -1,6 +1,14 @@
-# Prerequisites
-*.d
-
+Testing/
+*.DS_Store
+*.txt.cpp
+*CTestTestfile.cmake
+*perf.data*
+CMakeCache.txt
+CMakeFiles/
+Makefile
+bin/
+cmake_install.cmake
+install_manifest.txt
 # Compiled Object files
 *.slo
 *.lo
@@ -18,7 +26,6 @@
 
 # Fortran module files
 *.mod
-*.smod
 
 # Compiled Static libraries
 *.lai
@@ -30,3 +37,15 @@
 *.exe
 *.out
 *.app
+
+# Emacs
+*~
+
+# CMake generated .h files
+emp-ot/latticeInclude.h
+
+# Eigen source
+eigen/
+
+# VOLE COT data file
+data/
