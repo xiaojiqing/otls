@@ -7,12 +7,14 @@ template<typename IO>
 class PADOEva: public PADOParty<IO> { public:
 	HalfGateEva<IO> * gc;
 	PRG prg;
-	PADOEva(IO *io, HalfGateEva<IO> * gc): PADOParty<IO>(io, BOB) {
-		this->gc = gc;	
-		this->ot->setup_recv();
+	PADOEva(IO *io, HalfGateEva<IO> * gc, IKNP<IO> * in_ot = nullptr): PADOParty<IO>(io, BOB, in_ot) {
+		this->gc = gc;
+		if(in_ot == nullptr) { 
+			this->ot->setup_recv();
+		}
+		refill();
 		block seed; this->io->recv_block(&seed, 1);
 		this->shared_prg.reseed(&seed);
-		refill();
 	}
 
 	void refill() {

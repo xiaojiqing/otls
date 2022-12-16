@@ -17,9 +17,12 @@ class PADOParty: public ProtocolExecution { public:
 	int batch_size = 1024*16;
 	using ProtocolExecution::cur_party;
 
-	PADOParty(IO * io, int party) : ProtocolExecution(party) {
+	PADOParty(IO * io, int party, IKNP<IO>* in_ot) : ProtocolExecution(party) {
 		this->io = io;
-		ot = new IKNP<IO>(io, true);
+		if(in_ot == nullptr)
+			ot = new IKNP<IO>(io, true);
+		else
+			ot = in_ot;
 		buf = new block[batch_size];
 		buff = new bool[batch_size];
 	}

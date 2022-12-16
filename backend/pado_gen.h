@@ -8,17 +8,19 @@ namespace emp {
 template<typename IO>
 class PADOGen: public PADOParty<IO> { public:
 	HalfGateGen<IO> * gc;
-	PADOGen(IO* io, HalfGateGen<IO>* gc): PADOParty<IO>(io, ALICE) {
+	PADOGen(IO* io, HalfGateGen<IO>* gc, IKNP<IO>* in_ot = nullptr): PADOParty<IO>(io, ALICE, in_ot) {
 		this->gc = gc;
-		bool delta_bool[128];
-		block_to_bool(delta_bool, gc->delta);
-		this->ot->setup_send(delta_bool);
+		if(in_ot == nullptr) {
+			bool delta_bool[128];
+			block_to_bool(delta_bool, gc->delta);
+			this->ot->setup_send(delta_bool);
+		}
+		refill();
 		block seed;
 		PRG prg;
 		prg.random_block(&seed, 1);
 		this->io->send_block(&seed, 1);
 		this->shared_prg.reseed(&seed);
-		refill();
 	}
 
 	void refill() {

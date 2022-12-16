@@ -31,15 +31,26 @@ inline PADOParty<IO>* swap_role(int party) {
 	if(p->cur_party == party) {
 		error("party misaligned!");
 	}
+	IKNP<IO> * old_ot = p->ot;
+	IKNP<IO> * new_ot = new IKNP<IO>(old_ot->io, true);
+	block k0[128], k1[128];
+	bool s[128];
 	if(party == ALICE) {
 		auto t = new HalfGateGen<IO>(p->io);
-		auto pro = new PADOGen<IO>(p->io, t);
+		block_to_bool(s, t->delta);
+		old_ot->recv_rot(k0, s, 128);
+		new_ot->setup_send(s, k0);
+
+		auto pro = new PADOGen<IO>(p->io, t, new_ot);
 		finalize_backend();
 		CircuitExecution::circ_exec = t;
 		ProtocolExecution::prot_exec = pro;
 	} else {
 		auto t = new HalfGateEva<IO>(p->io);
-		auto pro = new PADOEva<IO>(p->io, t);
+
+		old_ot->send_rot(k0, k1, 128);
+		new_ot->setup_recv(k0, k1);
+		auto pro = new PADOEva<IO>(p->io, t, new_ot);
 		finalize_backend();
 		CircuitExecution::circ_exec = t;
 		ProtocolExecution::prot_exec = pro;
