@@ -3,7 +3,8 @@
 #include "backend/pado_party.h"
 
 namespace emp {
-
+//TODO: allow tuning delta
+//TODO: preset batch_size
 template<typename IO>
 class PADOGen: public PADOParty<IO> { public:
 	HalfGateGen<IO> * gc;

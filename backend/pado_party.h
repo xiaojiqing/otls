@@ -15,6 +15,7 @@ class PADOParty: public ProtocolExecution { public:
 	bool * buff = nullptr;
 	int top = 0;
 	int batch_size = 1024*16;
+	using ProtocolExecution::cur_party;
 
 	PADOParty(IO * io, int party) : ProtocolExecution(party) {
 		this->io = io;
