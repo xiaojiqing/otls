@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
-project (emp-sh2pc)
-set(NAME "emp-sh2pc")
+project (pado)
+set(NAME "pado")
 
 find_path(CMAKE_FOLDER NAMES cmake/emp-tool-config.cmake)
 include(${CMAKE_FOLDER}/cmake/emp-base.cmake)
@@ -11,6 +11,13 @@ include_directories(${EMP-OT_INCLUDE_DIRS})
 # Installation
 install(FILES cmake/emp-sh2pc-config.cmake DESTINATION cmake/)
 install(DIRECTORY emp-sh2pc DESTINATION include/)
+
+
+aux_source_directory(prf PRF_SRC)
+include_directories(prf)
+
+add_executable(test_prf "test/prf.cpp" ${PRF_SRC})
+target_link_libraries(test_prf ${EMP-TOOL_LIBRARIES} ${EMP-OT_LIBRARIES})
 
 ENABLE_TESTING()
 ADD_SUBDIRECTORY(test)
