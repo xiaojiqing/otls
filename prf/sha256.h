@@ -59,8 +59,8 @@ class SHA_256 {
 
     SHA_256(){};
     ~SHA_256(){};
-    void padding(vector<Integer>& input_data, Integer input);
-    void update(Integer* dig, vector<Integer> input_data);
+    void padding(Integer &padded_input, const Integer input);
+    void update(Integer* dig, const Integer padded_input);
     void chunk_compress(Integer* input_h, Integer* chunk);
     void digest(Integer* res, Integer input);
 };

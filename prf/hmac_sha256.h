@@ -22,7 +22,7 @@ class HMAC_SHA_256 : public SHA_256 {
     Integer i_key_pad;
 
     void init(Integer key);
-    void hmac_sha_256(Integer* res, Integer key, Integer msg);
+    void hmac_sha_256(Integer* res, const Integer key, const Integer msg);
 };
 
 #endif

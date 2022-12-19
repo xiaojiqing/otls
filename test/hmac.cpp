@@ -1,6 +1,5 @@
 #include "emp-tool/emp-tool.h"
 #include "sha256.h"
-#include "sha512.h"
 #include "hmac_sha256.h"
 #include "utils.h"
 #include "emp-sh2pc/emp-sh2pc.h"
@@ -22,25 +21,11 @@ void sha256test() {
     string str = "01234567890123456789012345678901";
 
     Integer input = str_to_int(str, PUBLIC);
+    auto start = clock_start();
     sha.digest(dig, input);
+    cout << "time: " << time_from(start) << "us" << endl;
+    print_hex_32(dig, sha.DIGLEN);
 
-    print_hex_32(dig,sha.DIGLEN);
-    delete[] dig;
-}
-
-void sha512test() {
-    SHA_512 sha = SHA_512();
-    Integer* dig = new Integer[sha.DIGLEN];
-    string msg_str = "012345678901234567890123456789012345678901234567";
-    Integer input = str_to_int(msg_str, PUBLIC);
-    // Integer inputA = Integer(1536, 0, ALICE);
-    // Integer inputB = Integer(1536, 1, BOB);
-
-    // Integer input = inputA ^ inputB;
-    sha.digest(dig, input);
-
-    cout << "SHA512: ";
-    print_hex_64(dig, sha.DIGLEN);
     delete[] dig;
 }
 
@@ -48,11 +33,13 @@ void hmac_sha256test() {
     HMAC_SHA_256 hmac256 = HMAC_SHA_256();
     Integer* dig = new Integer[hmac256.DIGLEN];
 
-    string key_str = "012345678901234567890123456789012345678901234567";
-    string msg_str = "abcdefabcdefabcdefabcdefabcdefabcdef";
+    string key_str = "01234567890123456789012345678901";
+    string msg_str = "master secret0123456789012345678901234567890101234567890123456789012345678901";
     Integer key = str_to_int(key_str, PUBLIC);
     Integer msg = str_to_int(msg_str, PUBLIC);
+    auto start = clock_start();
     hmac256.hmac_sha_256(dig, key, msg);
+    cout << "time: " << time_from(start) << "us" << endl;
 
     // cout << "call: " << hmac256.SHA256_call << endl;
     cout << "hmac-sha256: ";
@@ -64,7 +51,7 @@ void hmac_sha256circ() {
     HMAC_SHA_256 hmac = HMAC_SHA_256();
     Integer* dig = new Integer[hmac.DIGLEN];
     int keylen = 256;
-    int msglen = 296;
+    int msglen = 530;
     Integer keyA = Integer(keylen, 0, ALICE);
     Integer keyB = Integer(keylen, 1, BOB);
 
@@ -73,8 +60,10 @@ void hmac_sha256circ() {
 
     Integer key = keyA ^ keyB;
     Integer msg = msgA ^ msgB;
-
+    auto start = clock_start();
     hmac.hmac_sha_256(dig, key, msg);
+    cout << "time: " << time_from(start) << "us" << endl;
+
     cout << "CALL SHA256: " << hmac.SHA256_call << " times" << endl;
     delete[] dig;
 }

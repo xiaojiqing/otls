@@ -41,7 +41,7 @@ void HMAC_SHA_256::init(Integer key) {
     i_key_pad = pad_key ^ i_pad;
 }
 
-void HMAC_SHA_256::hmac_sha_256(Integer* dig, Integer key, Integer msg) {
+void HMAC_SHA_256::hmac_sha_256(Integer* dig, const Integer key, const Integer msg) {
     init(key);
     Integer i_msg = Integer(CHUNKLEN + msg.size(), 0, PUBLIC);
     for (int i = 0; i < msg.size(); i++) {

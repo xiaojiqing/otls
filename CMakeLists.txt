@@ -16,8 +16,11 @@ install(DIRECTORY emp-sh2pc DESTINATION include/)
 aux_source_directory(prf PRF_SRC)
 include_directories(prf)
 
-add_executable(test_prf "test/prf.cpp" ${PRF_SRC})
-target_link_libraries(test_prf ${EMP-TOOL_LIBRARIES} ${EMP-OT_LIBRARIES})
+add_executable(test_hmac "test/hmac.cpp" ${PRF_SRC})
+target_link_libraries(test_hmac ${EMP-TOOL_LIBRARIES} ${EMP-OT_LIBRARIES})
+
+add_executable(test_tlsprf "test/tlsprf.cpp" ${PRF_SRC})
+target_link_libraries(test_tlsprf ${EMP-TOOL_LIBRARIES} ${EMP-OT_LIBRARIES})
 
 ENABLE_TESTING()
 ADD_SUBDIRECTORY(test)

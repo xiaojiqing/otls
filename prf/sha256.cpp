@@ -9,7 +9,7 @@ using namespace std;
 using namespace emp;
 using std::vector;
 
-void SHA_256::padding(vector<Integer>& input_data, Integer input) {
+void SHA_256::padding(Integer& padded_input, const Integer input) {
     uint64_t L = input.size();
 
     long long K = (uint64_t)CHUNKLEN - 65 - L;
@@ -19,45 +19,44 @@ void SHA_256::padding(vector<Integer>& input_data, Integer input) {
 
     uint64_t padded_len = (uint64_t)K + 65 + L;
 
-    Integer _input = Integer(padded_len, 0, PUBLIC);
+    padded_input = input;
+    padded_input.resize(padded_len);
 
-    for (uint64_t i = 0; i < (uint64_t)input.size(); i++) {
-        _input.bits[i] = input.bits[i];
-    }
-    _input = (_input << 1);
-    _input.bits[0] = Bit(true, PUBLIC);
-    _input = _input << K;
-    _input = (_input << 64);
+    padded_input = padded_input << 1;
+    padded_input.bits[0] = Bit(true, PUBLIC);
+    padded_input = padded_input << K;
+    padded_input = padded_input << 64;
+    //padded_input = padded_input ^ Integer(padded_len, L, PUBLIC);
     for (int i = 0; i < 64; i++) {
-        _input.bits[i] = Bit((L >> i) % 2 == 1, PUBLIC);
-    }
-
-    Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
-
-    for (int i = padded_len - 1; i >= 0; --i) {
-        tmp.bits[i % WORDLEN] = _input.bits[i];
-
-        if (i % WORDLEN == 0) {
-            input_data.push_back(tmp);
-        }
+        padded_input.bits[i] = Bit((L >> i) % 2 == 1, PUBLIC);
     }
 }
 
-void SHA_256::update(Integer* dig, vector<Integer> input_data) { //CHUNKLEN = 512,WORDLEN =32
-    uint64_t padding_len = input_data.size() * WORDLEN;
-    if (padding_len % CHUNKLEN == 0) {
-        uint64_t num_chunk = padding_len / CHUNKLEN;
+void SHA_256::update(Integer* dig, const Integer padded_input) {
+    uint64_t padded_len = padded_input.size();
+    if (padded_len % CHUNKLEN == 0) {
+        Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
+        vector<Integer> input_data;
+        for (int i = padded_input.size() - 1; i >= 0; --i) {
+            tmp.bits[i % WORDLEN] = padded_input[i];
+
+            if (i % WORDLEN == 0) {
+                input_data.push_back(tmp);
+            }
+        }
+
+        uint64_t num_chunk = padded_len / CHUNKLEN;
         for (int i = 0; i < VALLEN; i++)
             dig[i] = sha256_h[i];
 
-        Integer* tmp = new Integer[CHUNKLEN / WORDLEN]; //CHUNKLEN/WORDLEN=16
+        Integer* tmp_block = new Integer[CHUNKLEN / WORDLEN]; //CHUNKLEN/WORDLEN=16
         for (uint64_t i = 0; i < num_chunk; i++) {
             for (int j = 0; j < CHUNKLEN / WORDLEN; j++) {
-                tmp[j] = input_data[j + i * CHUNKLEN / WORDLEN];
+                tmp_block[j] = input_data[j + i * CHUNKLEN / WORDLEN];
             }
-            chunk_compress(dig, tmp);
+            chunk_compress(dig, tmp_block);
         }
-        delete[] tmp;
+        delete[] tmp_block;
     } else
         error("wrong padding length!\n");
 }
@@ -113,7 +112,7 @@ void SHA_256::chunk_compress(Integer* input_h, Integer* chunk) { //chunk consist
 }
 
 void SHA_256::digest(Integer* res, Integer input) {
-    vector<Integer> input_data;
-    padding(input_data, input);
-    update(res, input_data);
+    Integer padded_input;
+    padding(padded_input, input);
+    update(res, padded_input);
 }

@@ -108,4 +108,14 @@ inline void intvec_to_int(Integer& out, Integer* in, size_t len) {
         out ^= ((tmp ^ in[i]) << ((len - 1 - i) * s));
     }
 }
+
+inline void concat(Integer& res, const Integer* in, size_t len) {
+    for (int i = 0; i < len; i++)
+        res.bits.insert(res.bits.begin(), in[i].bits.begin(), in[i].bits.end());
+}
+
+inline void move_concat(Integer& res, const Integer* in, size_t len) {
+    for (int i = 0; i < len; i++)
+        res.bits.insert(res.bits.begin(), make_move_iterator(in[i].bits.begin()), make_move_iterator(in[i].bits.end()));
+}
 #endif
