@@ -7,16 +7,15 @@ template<typename IO>
 class OLE { public:
 	IO * io;
 	COT<IO>* ot;
-	int party;
 	BN_CTX * ctx = nullptr;
 	vector<BIGNUM*> exp;
-	OLE(IO* io, COT<IO>* ot, int party, BIGNUM * q): io(io), ot(ot), party(party) {
+	CCRH ccrh;
+	OLE(IO* io, COT<IO>* ot, BIGNUM * q): io(io), ot(ot) {
 		if(q != nullptr) {
 			ctx = BN_CTX_new();
 			exp.resize(256);
 			for(int i = 0; i < 256; ++i) {
 				exp[i] = BN_new();
-				BN_zero(exp[i]);
 				BN_set_bit(exp[i], i);
 				BN_mod(exp[i], exp[i], q, ctx);
 			}
@@ -32,23 +31,23 @@ class OLE { public:
 	}
 
 	void H(BIGNUM*out, block b, BIGNUM* q) {
-		PRG prg(&b);
-		unsigned char arr[32];
-		prg.random_data(arr, 32);
-		BN_bin2bn(arr, 32, out);
+		block arr[2];
+		arr[0] = b ^ makeBlock(0, 1);
+		arr[1] = b ^ makeBlock(0, 2);
+		ccrh.H<2>(arr, arr);
+			
+		BN_bin2bn((unsigned char*)arr, 32, out);
 		BN_mod(out, out, q, ctx);
 	}
-
 	
 	//BN_new all memory
 	void compute(vector<BIGNUM*> & out, const vector<BIGNUM *>& in, BIGNUM* q, int bit_length) {
 		assert(out.size() == in.size());
 		unsigned char arr[1000];
-		if(party == ALICE) {
-			block * raw = new block[out.size()*bit_length];
+		BIGNUM *pad1 = BN_new(), *pad2 = BN_new(), *msg = BN_new(),  *tmp = BN_new();
+		block * raw = new block[out.size()*bit_length];
+		if(!cmpBlock(&ot->Delta, &zero_block, 1)) {
 			ot->send_cot(raw, out.size()*bit_length);
-			BIGNUM *pad1 = BN_new(), *pad2 = BN_new(), 
-					 *msg = BN_new(),  *tmp = BN_new();
 			for(int i = 0; i < out.size(); ++i) {
 				BN_zero(out[i]);
 				for(int j = 0; j < bit_length; ++j) {
@@ -67,22 +66,16 @@ class OLE { public:
 					io->send_data(&length, sizeof(int));
 					io->send_data(arr, length);
 				}
+				io->flush();
 			}
-			delete[] raw;
-			BN_free(pad1);
-			BN_free(pad2);
-			BN_free(msg);
-			BN_free(tmp);
-		} else if (party == BOB) {
+		} else {
 			bool * bits = new bool[out.size()*bit_length];
 			for(int i = 0; i < out.size(); ++i)
 				for(int j = 0; j < bit_length; ++j)
 					bits[i*bit_length+j] = (BN_is_bit_set(in[i], j) == 1);
 
-			block * raw = new block[out.size()*bit_length];
 			ot->recv_cot(raw, bits, out.size()*bit_length);
 
-			BIGNUM *msg=BN_new(), *tmp = BN_new();
 			for(int i = 0; i < out.size(); ++i) {
 				BN_zero(out[i]);
 				for(int j = 0; j < bit_length; ++j) {
@@ -92,20 +85,21 @@ class OLE { public:
 					BN_bin2bn(arr, length, tmp);
 
 					H(msg, raw[i*bit_length+j],  q);
-					if(bits[i*bit_length+j]) {
+					if(bits[i*bit_length+j])
 						BN_sub(msg, tmp, msg);
-						BN_mod_add(msg, msg, q, q, ctx);
-					}
 
 					BN_mod_mul(tmp, exp[j], msg, q, ctx);
 					BN_mod_add(out[i], out[i], tmp, q, ctx);
 				}
 			}
 			delete[] bits;
-			delete[] raw;
-			BN_free(msg);
-			BN_free(tmp);
 		}	
+		delete[] raw;
+		BN_free(pad1);
+		BN_free(pad2);
+		BN_free(msg);
+		BN_free(tmp);
+
 	}
 
 	uint64_t H(block b, uint64_t q) {
@@ -115,7 +109,7 @@ class OLE { public:
 	void compute(vector<uint64_t> & out, const vector<uint64_t>& in, uint64_t q) {
 		if (out.size() < in.size())
 			out.resize(in.size());
-		if(party == ALICE) {
+		if(!cmpBlock(&ot->Delta, &zero_block, 1)) {
 			uint64_t *pad = new uint64_t[out.size()*64];
 			uint64_t *msg = new uint64_t[out.size()*64];
 			block * raw = new block[out.size()*64];
@@ -135,7 +129,7 @@ class OLE { public:
 			delete[] pad;
 			delete[] msg;
 			delete[] raw;
-		} else if (party == BOB) {
+		} else {
 			uint64_t *pad = new uint64_t[out.size()*64];
 			uint64_t *msg = new uint64_t[out.size()*64];
 			bool * bits = new bool[out.size()*64];
