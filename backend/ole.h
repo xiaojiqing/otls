@@ -8,18 +8,35 @@ class OLE { public:
 	IO * io;
 	COT<IO>* ot;
 	int party;
-	BN_CTX * ctx;
-	OLE(IO* io, COT<IO>* ot, int party): io(io), ot(ot), party(party) {
-		ctx = BN_CTX_new();
+	BN_CTX * ctx = nullptr;
+	vector<BIGNUM*> exp;
+	OLE(IO* io, COT<IO>* ot, int party, BIGNUM * q): io(io), ot(ot), party(party) {
+		if(q != nullptr) {
+			ctx = BN_CTX_new();
+			exp.resize(256);
+			for(int i = 0; i < 256; ++i) {
+				exp[i] = BN_new();
+				BN_zero(exp[i]);
+				BN_set_bit(exp[i], i);
+				BN_mod(exp[i], exp[i], q, ctx);
+			}
+		}
 	}
 	
 	~OLE() {
-		BN_CTX_free(ctx);
+		if(ctx != nullptr) {
+			BN_CTX_free(ctx);
+			for(int i = 0; i < 256; ++i)
+				BN_free(exp[i]);
+		}
 	}
 
 	void H(BIGNUM*out, block b, BIGNUM* q) {
-		uint64_t aa = BN_get_word(q);
-		BN_set_word(out, b[0] % aa);
+		PRG prg(&b);
+		unsigned char arr[32];
+		prg.random_data(arr, 32);
+		BN_bin2bn(arr, 32, out);
+		BN_mod(out, out, q, ctx);
 	}
 
 	
@@ -31,7 +48,7 @@ class OLE { public:
 			block * raw = new block[out.size()*bit_length];
 			ot->send_cot(raw, out.size()*bit_length);
 			BIGNUM *pad1 = BN_new(), *pad2 = BN_new(), 
-					 *msg = BN_new(),  *tmp = BN_new(), *tmp2 = BN_new();
+					 *msg = BN_new(),  *tmp = BN_new();
 			for(int i = 0; i < out.size(); ++i) {
 				BN_zero(out[i]);
 				for(int j = 0; j < bit_length; ++j) {
@@ -41,10 +58,8 @@ class OLE { public:
 					BN_mod_add(msg, msg, in[i], q, ctx);
 
 //
-					BN_zero(tmp2);
-					BN_set_bit(tmp2, j);
 					BN_sub(tmp, q, pad1);
-					BN_mod_mul(tmp, tmp2, tmp, q, ctx);
+					BN_mod_mul(tmp, exp[j], tmp, q, ctx);
 					BN_mod_add(out[i], out[i], tmp, q, ctx);
 
 //
@@ -58,7 +73,6 @@ class OLE { public:
 			BN_free(pad2);
 			BN_free(msg);
 			BN_free(tmp);
-			BN_free(tmp2);
 		} else if (party == BOB) {
 			bool * bits = new bool[out.size()*bit_length];
 			for(int i = 0; i < out.size(); ++i)
@@ -68,39 +82,30 @@ class OLE { public:
 			block * raw = new block[out.size()*bit_length];
 			ot->recv_cot(raw, bits, out.size()*bit_length);
 
-			BIGNUM * pad = BN_new(), *msg=BN_new(), *tmp2 = BN_new(), 
-					*tmp = BN_new();
+			BIGNUM *msg=BN_new(), *tmp = BN_new();
 			for(int i = 0; i < out.size(); ++i) {
 				BN_zero(out[i]);
 				for(int j = 0; j < bit_length; ++j) {
 					int length = -1;
 					io->recv_data(&length, sizeof(int));
 					io->recv_data(arr, length);
-					BN_bin2bn(arr, length, msg);
+					BN_bin2bn(arr, length, tmp);
 
-					H(pad, raw[i*bit_length+j],  q);
+					H(msg, raw[i*bit_length+j],  q);
 					if(bits[i*bit_length+j]) {
-						BN_sub(msg, msg, pad);
+						BN_sub(msg, tmp, msg);
 						BN_mod_add(msg, msg, q, q, ctx);
-					} else {
-						BN_copy(msg, pad);
-					} //msg <- si
+					}
 
-
-					BN_zero(tmp2);
-					BN_set_bit(tmp2, j);
-					BN_mod_mul(tmp, tmp2, msg, q, ctx);
+					BN_mod_mul(tmp, exp[j], msg, q, ctx);
 					BN_mod_add(out[i], out[i], tmp, q, ctx);
 				}
 			}
 			delete[] bits;
 			delete[] raw;
-			BN_free(pad);
 			BN_free(msg);
 			BN_free(tmp);
-			BN_free(tmp2);
-		}
-	
+		}	
 	}
 
 	uint64_t H(block b, uint64_t q) {

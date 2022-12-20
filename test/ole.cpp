@@ -6,6 +6,19 @@ using namespace std;
 using namespace emp;
 
 int main(int argc, char** argv) {
+/*	BIGNUM * out = BN_new();
+	BN_zero(out);
+	BN_set_bit(out, 0);
+	BN_set_bit(out, 255);
+	for(int i = 0; i < 300; ++i)
+		cout <<i<<BN_is_bit_set(out, i)<<"\n";
+	unsigned char arr[1000];
+	int length = BN_bn2bin(out, arr);
+	cout<<"!!"<< length<<"\n";
+	for(int i = 0; i < length; ++i)
+		cout <<uint32_t(arr[i])<<endl;
+	return 0;
+*/
 	int port, party;
 	parse_party_and_port(argv, &party, &port);
 	NetIO* ios[1];
@@ -18,7 +31,7 @@ int main(int argc, char** argv) {
 
 	FerretCOT<NetIO> * ferretcot = new FerretCOT<NetIO>(party, 1, ios, true, true, ferret_b13);
 	{//uint64_t
-		OLE<NetIO> ole(ios[0], ferretcot, party);
+		OLE<NetIO> ole(ios[0], ferretcot, party, nullptr);
 		vector<uint64_t> in, out;
 		in.resize(10);
 		out.resize(10);
@@ -48,7 +61,6 @@ int main(int argc, char** argv) {
 		}
 	} 
 	{//openssl
-		OLE<NetIO> ole(ios[0], ferretcot, party);
 		vector<BIGNUM*> in, out;
 		in.resize(10);
 		out.resize(10);
@@ -62,6 +74,7 @@ int main(int argc, char** argv) {
 			BN_mod(in[i], in[i], q, ctx);
 		}
 
+		OLE<NetIO> ole(ios[0], ferretcot, party, q);
 		ole.compute(out, in, q, 62);
 		
 		BIGNUM* tmp = BN_new();
