@@ -2,7 +2,7 @@
 #include "sha256.h"
 #include "hmac_sha256.h"
 #include "utils.h"
-#include "emp-sh2pc/emp-sh2pc.h"
+#include "backend/backend.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -78,12 +78,12 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    setup_semi_honest(io, party);
+    setup_backend(io, party);
 
     hmac_sha256circ();
     //sha256test();
     cout << "AND gates: " << CircuitExecution::circ_exec->num_and() << endl;
-    finalize_semi_honest();
+    finalize_backend();
 
     delete io;
 }
