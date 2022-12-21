@@ -52,7 +52,7 @@ inline string int_to_hex(vector<uint32_t> vint) {
     for (uint64_t i = 0; i < vint.size(); i++) {
         for (int j = 3; j >= 0; j--) {
             tmp_int = (vint[i] & (0xFF << (8 * j))) >> (8 * j);
-            sprintf(buffer, "%02x", tmp_int);
+            snprintf(buffer, 3,  "%02x", tmp_int);
             str += buffer;
         }
     }
@@ -70,7 +70,7 @@ inline string int_to_hex(vector<uint64_t> vint) {
     for (uint64_t i = 0; i < vint.size(); i++) {
         for (int j = 7; j >= 0; j--) {
             tmp_int = (vint[i] & (0xFFLL << (8 * j))) >> (8 * j);
-            sprintf(buffer, "%02x", tmp_int);
+            snprintf(buffer, 3, "%02x", tmp_int);
             str += buffer;
         }
     }
