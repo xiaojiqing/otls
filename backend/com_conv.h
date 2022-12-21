@@ -1,17 +1,20 @@
 #ifndef PADO_COM_COV_H
 #define PADO_COM_COV_H
 #include <openssl/bn.h>
+#include <string.h>
+
+#include "backend/bn_utils.h"
 #include "emp-tool/emp-tool.h"
 
 using namespace emp;
 template<typename IO>
 class ComConv { public:
 	IO * io;
-	block Delta = zero_block;
+	block bDelta = zero_block;
 	BIGNUM * aDelta = nullptr;
-	Hash hash;
 	CCRH ccrh;
 	unsigned char com[Hash::DIGEST_SIZE];
+	unsigned char msg_com[Hash::DIGEST_SIZE];
 	BIGNUM * q;
 	BN_CTX * ctx;
 	block com_seed;
@@ -26,21 +29,24 @@ class ComConv { public:
 			BN_free(aDelta);
 		BN_CTX_free(ctx);
 	}
-	
-	void commitDelta(block * dptr = nullptr, BIGNUM* aDelta = nullptr) {
-		if(Delta!= nullptr) {
-			PRG prg;
-			prg.random_data(&com_seed, sizeof(block));
-			hash.put(&com_seed, sizeof(block));
 
-			hash.put(dptr, sizeof(block));
+	void compute_hash(unsigned char res[Hash::DIGEST_SIZE], block seed, block bDelta, BIGNUM* aDelta) {
+			Hash hash;
+			hash.put(&seed, sizeof(block));
+			hash.put(&bDelta, sizeof(block));
 			unsigned char arr[1000];
 			int length = BN_bn2bin(aDelta, arr);
 			hash.put(&length, sizeof(int));
 			hash.put(arr, length);
-			hash.digest(com);
+			hash.digest(res);
+	}	
+	void commitDelta(block * dptr = nullptr, BIGNUM* aDelta = nullptr) {
+		if(aDelta!= nullptr) {
+			PRG prg;
+			prg.random_data(&com_seed, sizeof(block));
+			compute_hash(com, com_seed, *dptr, aDelta);
 			io->send_data(com, Hash::DIGEST_SIZE);
-			Delta = *dptr;
+			bDelta = *dptr;
 			this->aDelta = BN_new();
 			BN_copy(this->aDelta, aDelta);
 		} else {
@@ -48,15 +54,17 @@ class ComConv { public:
 		}
 	}
 
-	void convert(vector<BIGNUM*> & aMACs, vector<block> & bMACs) {
+	void convert_recv(vector<BIGNUM*> & aMACs, vector<block> & bMACs) {
+		Hash hash;
 		vector<BIGNUM*> msg; msg.resize(bMACs.size());
 		for(int i = 0; i < bMACs.size(); ++i) {
 			msg[i] = BN_new();
-			recv_bn(io, msg[i]);
+			recv_bn(io, msg[i], &hash);
 		}
+		hash.digest(msg_com);
 
 		for(int i = 0; i < bMACs.size(); ++i) {
-			H(aMACs[i], bMACs[i], q);	
+			H(aMACs[i], bMACs[i], q, ctx, ccrh);	
 			if(getLSB(bMACs[i])) {
 				BN_sub(aMACs[i], msg[i], aMACs[i]);
 				BN_mod_add(aMACs[i], aMACs[i], q, q, ctx);
@@ -65,34 +73,69 @@ class ComConv { public:
 	}
 
 	
-	void convert(vector<BIGNUM*> & aKEYs, vector<block> & bKEYs, block Delta, BIGNUM* aDelta) {
+	void convert_send(vector<BIGNUM*> & aKEYs, vector<block> & bKEYs) {
 		vector<BIGNUM*> msg; msg.resize(bKEYs.size());
 		for(int i = 0; i < bKEYs.size(); ++i)
 			msg[i] = BN_new();
 		 
-		convert(com_seed, msg, aKEYs, bKEYs);
+		convert(msg, aKEYs, com_seed, bKEYs, bDelta, aDelta);
 		for(int i = 0; i < msg.size(); ++i)
 			send_bn(io, msg[i]);
 	}
 
-	void convert(block seed, vector<BIGNUM*>& msg,
-			vector<BIGNUM*> & aKEYs, vector<block> & bKEYs) {
+	void convert(vector<BIGNUM*>& msg, vector<BIGNUM*> & aKEYs, 
+					block seed, vector<block> & bKEYs, block local_bDelta, BIGNUM* local_aDelta) {
 		assert(aKEYs.size() == bKEYs.size());
 		for(int i = 0; i < aKEYs.size(); ++i) {
-			H(aKEYs[i], bKEYs[i], q);
-			H(msg[i], bKEYs[i] ^ Delta, q);
+			H(aKEYs[i], bKEYs[i], q, ctx, ccrh);
+			H(msg[i], bKEYs[i] ^ local_bDelta, q, ctx, ccrh);
 			BN_add(msg[i], msg[i], aKEYs[i]);
-			BN_mod_add(msg[i], msg[i], aDelta, q, ctx);
+			BN_mod_add(msg[i], msg[i], local_aDelta, q, ctx);
 		}
 	}
 
-	bool open() {
+	void check( ){
+	}
+	bool open(vector<block> & bMACs) {
 		if(aDelta != nullptr) {
-			//send Delta, aDelta, seed
+			io->send_data(&com_seed, sizeof(block));
+			io->send_data(&bDelta, sizeof(block));
+			send_bn(io, aDelta);
 		} else {
-			//check Delta, aDelta, seed,
-			//check msg
+			block tmp_seed, tmp_bDelta;
+			BIGNUM* tmp_aDelta = BN_new();
+			io->recv_data(&tmp_seed, sizeof(block));
+			io->recv_data(&tmp_bDelta, sizeof(block));
+			recv_bn(io, tmp_aDelta);
+			unsigned char tmp_com[Hash::DIGEST_SIZE];
+			compute_hash(tmp_com, tmp_seed, tmp_bDelta, tmp_aDelta);
+			if(std::strncmp((char *)tmp_com, (char*)com, Hash::DIGEST_SIZE) != 0)
+				return false;
+
+			vector<BIGNUM*> msg; msg.resize(bMACs.size());
+			vector<BIGNUM*> tmp_akeys; tmp_akeys.resize(bMACs.size());
+			vector<block> tmp_bkeys(bMACs);
+			for(int i = 0; i < bMACs.size(); ++i)  {
+				tmp_akeys[i] = BN_new();
+				msg[i] = BN_new();
+				if(getLSB(tmp_bkeys[i]))
+					tmp_bkeys[i] = tmp_bkeys[i] ^ tmp_bDelta;
+			}
+			convert(msg, tmp_akeys, com_seed, tmp_bkeys, tmp_bDelta, tmp_aDelta);
+			Hash hash;
+			unsigned char arr[1000];
+			for(int i = 0; i < bMACs.size(); ++i) {
+				uint32_t length = BN_bn2bin(msg[i], arr);
+				hash.put(arr, length);
+			}
+			hash.digest(tmp_com);
+			
+			if(std::strncmp((char *)tmp_com, (char *)msg_com, Hash::DIGEST_SIZE) != 0)
+				return false;
+			
+			BN_free(tmp_aDelta);
 		}
+		return true;
 	}
 };
 #endif// PADO_COM_COV_H

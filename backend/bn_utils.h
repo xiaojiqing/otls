@@ -3,6 +3,7 @@
 
 #include <openssl/bn.h>
 #include "emp-tool/emp-tool.h"
+using namespace emp;
 
 inline void H(BIGNUM*out, block b, BIGNUM* q, BN_CTX* ctx, CCRH& ccrh) {
 	block arr[2];
@@ -21,11 +22,13 @@ inline void send_bn(NetIO* io, BIGNUM* bn) {
 	io->send_data(arr, length);
 }
 
-inline void recv_bn(NetIO* io, BIGNUM*bn) {
+inline void recv_bn(NetIO* io, BIGNUM*bn, Hash * hash = nullptr) {
 	unsigned char arr[1000];
 	uint32_t length = -1;
 	io->recv_data(&length, sizeof(uint32_t));
 	io->recv_data(arr, length);
+	if(hash != nullptr)
+		hash->put(arr, length);
 	BN_bin2bn(arr, length, bn);
 }
 
