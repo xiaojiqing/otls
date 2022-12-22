@@ -43,17 +43,18 @@ int main(int argc, char** argv) {
 		aAuth[i] = BN_new();
 	if(party == ALICE) {
 		conv.convert_send(aAuth, raw);
+		conv.open();	
 	} else {
 		conv.convert_recv(aAuth, raw);
+		bool res = conv.open(raw);	
+		if(res)
+			cout <<"opened fine!\n";
+		else
+			cout <<"cheat!\n";
 	}
 	// consistency check.
 	
 
-	bool res = conv.open(raw);	
-	if(res)
-		cout <<"opened fine!\n";
-	else
-		cout <<"cheat!\n";
 
 	
 

@@ -23,7 +23,7 @@ class ComConv { public:
 		BN_copy(this->q, q2);
 		ctx = BN_CTX_new();
 	}
- 	~ComConv() {
+	~ComConv() {
 		BN_free(q);
 		if(aDelta!=nullptr)
 			BN_free(aDelta);
@@ -31,14 +31,14 @@ class ComConv { public:
 	}
 
 	void compute_hash(unsigned char res[Hash::DIGEST_SIZE], block seed, block bDelta, BIGNUM* aDelta) {
-			Hash hash;
-			hash.put(&seed, sizeof(block));
-			hash.put(&bDelta, sizeof(block));
-			unsigned char arr[1000];
-			int length = BN_bn2bin(aDelta, arr);
-			hash.put(&length, sizeof(int));
-			hash.put(arr, length);
-			hash.digest(res);
+		Hash hash;
+		hash.put(&seed, sizeof(block));
+		hash.put(&bDelta, sizeof(block));
+		unsigned char arr[1000];
+		int length = BN_bn2bin(aDelta, arr);
+		hash.put(&length, sizeof(int));
+		hash.put(arr, length);
+		hash.digest(res);
 	}	
 	void commitDelta(block * dptr = nullptr, BIGNUM* aDelta = nullptr) {
 		if(aDelta!= nullptr) {
@@ -70,21 +70,26 @@ class ComConv { public:
 				BN_mod_add(aMACs[i], aMACs[i], q, q, ctx);
 			}
 		}
+		for(int i = 0; i < bMACs.size(); ++i)
+			BN_free(msg[i]);
 	}
 
-	
+
 	void convert_send(vector<BIGNUM*> & aKEYs, vector<block> & bKEYs) {
 		vector<BIGNUM*> msg; msg.resize(bKEYs.size());
 		for(int i = 0; i < bKEYs.size(); ++i)
 			msg[i] = BN_new();
-		 
+
 		convert(msg, aKEYs, com_seed, bKEYs, bDelta, aDelta);
 		for(int i = 0; i < msg.size(); ++i)
 			send_bn(io, msg[i]);
+
+		for(int i = 0; i < bKEYs.size(); ++i)
+			BN_free(msg[i]);
 	}
 
 	void convert(vector<BIGNUM*>& msg, vector<BIGNUM*> & aKEYs, 
-					block seed, vector<block> & bKEYs, block local_bDelta, BIGNUM* local_aDelta) {
+			block seed, vector<block> & bKEYs, block local_bDelta, BIGNUM* local_aDelta) {
 		assert(aKEYs.size() == bKEYs.size());
 		for(int i = 0; i < aKEYs.size(); ++i) {
 			H(aKEYs[i], bKEYs[i], q, ctx, ccrh);
@@ -96,46 +101,49 @@ class ComConv { public:
 
 	void check( ){
 	}
-	bool open(vector<block> & bMACs) {
-		if(aDelta != nullptr) {
-			io->send_data(&com_seed, sizeof(block));
-			io->send_data(&bDelta, sizeof(block));
-			send_bn(io, aDelta);
-		} else {
-			block tmp_seed, tmp_bDelta;
-			BIGNUM* tmp_aDelta = BN_new();
-			io->recv_data(&tmp_seed, sizeof(block));
-			io->recv_data(&tmp_bDelta, sizeof(block));
-			recv_bn(io, tmp_aDelta);
-			unsigned char tmp_com[Hash::DIGEST_SIZE];
-			compute_hash(tmp_com, tmp_seed, tmp_bDelta, tmp_aDelta);
-			if(std::strncmp((char *)tmp_com, (char*)com, Hash::DIGEST_SIZE) != 0)
-				return false;
 
-			vector<BIGNUM*> msg; msg.resize(bMACs.size());
-			vector<BIGNUM*> tmp_akeys; tmp_akeys.resize(bMACs.size());
-			vector<block> tmp_bkeys(bMACs);
-			for(int i = 0; i < bMACs.size(); ++i)  {
-				tmp_akeys[i] = BN_new();
-				msg[i] = BN_new();
-				if(getLSB(tmp_bkeys[i]))
-					tmp_bkeys[i] = tmp_bkeys[i] ^ tmp_bDelta;
-			}
-			convert(msg, tmp_akeys, com_seed, tmp_bkeys, tmp_bDelta, tmp_aDelta);
-			Hash hash;
-			unsigned char arr[1000];
-			for(int i = 0; i < bMACs.size(); ++i) {
-				uint32_t length = BN_bn2bin(msg[i], arr);
-				hash.put(arr, length);
-			}
-			hash.digest(tmp_com);
-			
-			if(std::strncmp((char *)tmp_com, (char *)msg_com, Hash::DIGEST_SIZE) != 0)
-				return false;
-			
-			BN_free(tmp_aDelta);
+	void open() {
+		io->send_data(&com_seed, sizeof(block));
+		io->send_data(&bDelta, sizeof(block));
+		send_bn(io, aDelta);
+	}
+	bool open(vector<block> & bMACs) {
+		bool ret = true;
+		block tmp_seed, tmp_bDelta;
+		BIGNUM* tmp_aDelta = BN_new();
+		io->recv_data(&tmp_seed, sizeof(block));
+		io->recv_data(&tmp_bDelta, sizeof(block));
+		recv_bn(io, tmp_aDelta);
+		unsigned char tmp_com[Hash::DIGEST_SIZE];
+		compute_hash(tmp_com, tmp_seed, tmp_bDelta, tmp_aDelta);
+		ret = ret and (std::strncmp((char *)tmp_com, (char*)com, Hash::DIGEST_SIZE) == 0);
+
+		vector<BIGNUM*> msg; msg.resize(bMACs.size());
+		vector<BIGNUM*> tmp_akeys; tmp_akeys.resize(bMACs.size());
+		vector<block> tmp_bkeys(bMACs);
+		for(int i = 0; i < bMACs.size(); ++i)  {
+			tmp_akeys[i] = BN_new();
+			msg[i] = BN_new();
+			if(getLSB(tmp_bkeys[i]))
+				tmp_bkeys[i] = tmp_bkeys[i] ^ tmp_bDelta;
 		}
-		return true;
+		convert(msg, tmp_akeys, com_seed, tmp_bkeys, tmp_bDelta, tmp_aDelta);
+		Hash hash;
+		unsigned char arr[1000];
+		for(int i = 0; i < bMACs.size(); ++i) {
+			uint32_t length = BN_bn2bin(msg[i], arr);
+			hash.put(arr, length);
+		}
+		hash.digest(tmp_com);
+
+		BN_free(tmp_aDelta);
+		for(int i = 0; i < bMACs.size(); ++i) {
+			BN_free(tmp_akeys[i]);
+			BN_free(msg[i]);
+		}
+
+		ret = ret and (std::strncmp((char *)tmp_com, (char *)msg_com, Hash::DIGEST_SIZE) == 0);
+		return ret;
 	}
 };
 #endif// PADO_COM_COV_H

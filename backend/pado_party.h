@@ -2,8 +2,7 @@
 #define PADO_PARTY_H__
 #include "emp-tool/emp-tool.h"
 #include "emp-ot/emp-ot.h"
-
-namespace emp {
+using namespace emp;
 
 template<typename IO>
 class PADOParty: public ProtocolExecution { public:
@@ -40,5 +39,4 @@ class PADOParty: public ProtocolExecution { public:
 		delete ot;
 	}
 };
-}
 #endif

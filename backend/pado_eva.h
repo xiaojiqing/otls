@@ -1,8 +1,7 @@
-#ifndef EVA_H__
-#define EVA_H__
+#ifndef PADO_EVA_H__
+#define PADO_EVA_H__
 #include "backend/pado_party.h"
 
-namespace emp {
 template<typename IO>
 class PADOEva: public PADOParty<IO> { public:
 	HalfGateEva<IO> * gc;
@@ -75,6 +74,5 @@ class PADOEva: public PADOParty<IO> { public:
 	}
 
 };
-}
 
 #endif// GARBLE_CIRCUIT_SEMIHONEST_H__

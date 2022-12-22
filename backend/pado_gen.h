@@ -2,7 +2,6 @@
 #define PADO_GEN_H__
 #include "backend/pado_party.h"
 
-namespace emp {
 //TODO: allow tuning delta
 //TODO: preset batch_size
 template<typename IO>
@@ -81,5 +80,4 @@ class PADOGen: public PADOParty<IO> { public:
 			this->io->recv_data(b, length);
 	}
 };
-}
 #endif

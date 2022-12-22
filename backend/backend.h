@@ -1,9 +1,9 @@
-#ifndef EMP_SEMIHONEST_H__
-#define EMP_SEMIHONEST_H__
+#ifndef PADO_BACKEND_H__
+#define PADO_BACKEND_H__
+#include "emp-tool/emp-tool.h"
 #include "backend/pado_gen.h"
 #include "backend/pado_eva.h"
-
-namespace emp {
+using namespace emp;
 
 template<typename IO>
 inline PADOParty<IO>* setup_backend(IO* io, int party, int batch_size = 1024) {
@@ -55,8 +55,6 @@ inline PADOParty<IO>* swap_role(int party) {
 		CircuitExecution::circ_exec = t;
 		ProtocolExecution::prot_exec = pro;
 	}
-}
-
-
+	return (PADOParty<IO>*)ProtocolExecution::prot_exec;
 }
 #endif

@@ -26,6 +26,7 @@ class OLE { public:
 
 	~OLE() {
 		BN_CTX_free(ctx);
+		BN_free(q);
 		for(int i = 0; i < bit_length; ++i)
 			BN_free(exp[i]);
 	}
