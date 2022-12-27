@@ -18,7 +18,7 @@ void sha256test() {
     Integer* dig = new Integer[sha.DIGLEN];
     vector<uint32_t> outhex;
 
-    string str = "01234567890123456789012345678901";
+    string str = "01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123";
 
     Integer input = str_to_int(str, PUBLIC);
     auto start = clock_start();
@@ -27,6 +27,20 @@ void sha256test() {
     print_hex_32(dig, sha.DIGLEN);
 
     delete[] dig;
+}
+
+void optsha256test(){
+    SHA_256 sha;
+    uint32_t *dig = new uint32_t[sha.DIGLEN];
+    string sec = "0123456789012345678901234567890123456789012345678901234567890123";
+    Integer sec_input = str_to_int(sec,PUBLIC);
+    unsigned char pub_input[] = {"0123456789012345678901234567890123456789012345678901234567890123"};
+    sha.opt_digest(dig,sec_input,pub_input,64);
+
+    for(int i = 0; i < sha.DIGLEN; i++){
+        cout << hex << dig[i];
+    }
+    cout << endl;
 }
 
 void hmac_sha256test() {
@@ -80,9 +94,10 @@ int main(int argc, char** argv) {
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
     setup_backend(io, party);
 
-    hmac_sha256circ();
+    //hmac_sha256circ();
     //sha256test();
-    cout << "AND gates: " << CircuitExecution::circ_exec->num_and() << endl;
+    optsha256test();
+    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
 
     delete io;

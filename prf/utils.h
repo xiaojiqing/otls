@@ -11,10 +11,9 @@ using namespace emp;
 using std::string;
 using std::vector;
 
-inline Integer rrot(const Integer& rhs, int sht) {
-    Integer tmp(rhs);
-    return (tmp >> sht) ^ (tmp << (tmp.size() - sht));
-}
+inline Integer rrot(const Integer& rhs, int sht) { return (rhs >> sht) ^ (rhs << (rhs.size() - sht)); }
+
+inline uint32_t rrot(const uint32_t& rhs, int sht) { return (rhs >> sht) | (rhs << (32 - sht)); }
 
 inline Integer lrot(const Integer& rhs, int sht) {
     Integer tmp(rhs);
@@ -31,7 +30,13 @@ inline Integer str_to_int(string str, int party) {
     return res;
 }
 
-/*inline vector<Bit> str_to_bits(string str){
+inline void char_to_uint32(uint32_t* res, const char* in, size_t len){
+    for(int i = 0; i < len/4; i++){
+
+    }
+}
+
+  /*inline vector<Bit> str_to_bits(string str){
 	vector<Bit> bits;
 	bool b;
 	for(uint64_t i = 0; i < str.length(); i++){
@@ -44,7 +49,7 @@ inline Integer str_to_int(string str, int party) {
 }
 */
 
-inline string int_to_hex(vector<uint32_t> vint) {
+  inline string int_to_hex(vector<uint32_t> vint) {
     string str;
     uint tmp_int;
     char* buffer = new char[3];
@@ -52,7 +57,7 @@ inline string int_to_hex(vector<uint32_t> vint) {
     for (uint64_t i = 0; i < vint.size(); i++) {
         for (int j = 3; j >= 0; j--) {
             tmp_int = (vint[i] & (0xFF << (8 * j))) >> (8 * j);
-            snprintf(buffer, 3,  "%02x", tmp_int);
+            snprintf(buffer, 3, "%02x", tmp_int);
             str += buffer;
         }
     }
