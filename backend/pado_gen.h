@@ -61,19 +61,31 @@ class PADOGen: public PADOParty<IO> { public:
 
 	void reveal(bool* b, int party, const block * label, int length) {
 		if (party == XOR) {
-			for (int i = 0; i < length; ++i)
-				b[i] = getLSB(label[i]);
+			for (int i = 0; i < length; ++i) {
+				if(isOne(&label[i]) or isZero(&label[i]))
+					b[i] = false;
+				else 
+					b[i] = getLSB(label[i]);
+			}
 			return;
 		}
 		for (int i = 0; i < length; ++i) {
-			bool lsb = getLSB(label[i]);
-			if (party == BOB or party == PUBLIC) {
-				this->io->send_data(&lsb, 1);
+			if(isOne(&label[i])) {
+				b[i] = true;
+			}
+			else if (isZero(&label[i])) {
 				b[i] = false;
-			} else if(party == ALICE) {
-				bool tmp;
-				this->io->recv_data(&tmp, 1);
-				b[i] = (tmp != lsb);
+			}
+			else {
+				bool lsb = getLSB(label[i]);
+				if (party == BOB or party == PUBLIC) {
+					this->io->send_data(&lsb, 1);
+					b[i] = false;
+				} else if(party == ALICE) {
+					bool tmp;
+					this->io->recv_data(&tmp, 1);
+					b[i] = (tmp != lsb);
+				}
 			}
 		}
 		if(party == PUBLIC)

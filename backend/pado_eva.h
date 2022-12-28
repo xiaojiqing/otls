@@ -55,22 +55,34 @@ class PADOEva: public PADOParty<IO> { public:
 
 	void reveal(bool * b, int party, const block * label, int length) {
 		if (party == XOR) {
-			for (int i = 0; i < length; ++i)
-				b[i] = getLSB(label[i]);
+			for (int i = 0; i < length; ++i) {
+				if (isOne(&label[i]))
+					b[i] = true;
+				else if (isZero(&label[i]))
+					b[i] = false;
+				else 
+					b[i] = getLSB(label[i]);
+			}
 			return;
 		}
 		for (int i = 0; i < length; ++i) {
-			bool lsb = getLSB(label[i]), tmp;
-			if (party == BOB or party == PUBLIC) {
-				this->io->recv_data(&tmp, 1);
-				b[i] = (tmp != lsb);
-			} else if (party == ALICE) {
-				this->io->send_data(&lsb, 1);
+			if(isOne(&label[i]))
+				b[i] = true;
+			else if (isZero(&label[i]))
 				b[i] = false;
+			else {			
+				bool lsb = getLSB(label[i]), tmp;
+				if (party == BOB or party == PUBLIC) {
+					this->io->recv_data(&tmp, 1);
+					b[i] = (tmp != lsb);
+				} else if (party == ALICE) {
+					this->io->send_data(&lsb, 1);
+					b[i] = false;
+				}
 			}
 		}
 		if(party == PUBLIC)
-			this->io->send_data(b, length);
+			this->io->send_data(b, length);	
 	}
 
 };

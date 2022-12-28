@@ -105,7 +105,7 @@ class OptHalfGateGen:public CircuitExecution { public:
 			if (isDelta(res))
 				return fix_point ^ delta;
 			else
-				return res;//xorBlocks(a, b);
+				return res;
 		}
 	}
 	block not_gate(const block&a) override {
