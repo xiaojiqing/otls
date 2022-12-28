@@ -1,7 +1,6 @@
 #include "emp-tool/emp-tool.h"
 #include "backend/backend.h"
-#include "tlsprf.h"
-#include "utils.h"
+#include "prf/tlsprf.h"
 
 #include <iostream>
 #include <vector>

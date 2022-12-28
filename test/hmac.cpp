@@ -1,7 +1,6 @@
 #include "emp-tool/emp-tool.h"
-#include "sha256.h"
-#include "hmac_sha256.h"
-#include "utils.h"
+#include "prf/sha256.h"
+#include "prf/hmac_sha256.h"
 #include "backend/backend.h"
 #include <iostream>
 #include <string>
@@ -29,15 +28,15 @@ void sha256test() {
     delete[] dig;
 }
 
-void optsha256test(){
+void optsha256test() {
     SHA_256 sha;
-    uint32_t *dig = new uint32_t[sha.DIGLEN];
+    uint32_t* dig = new uint32_t[sha.DIGLEN];
     string sec = "0123456789012345678901234567890123456789012345678901234567890123";
-    Integer sec_input = str_to_int(sec,PUBLIC);
+    Integer sec_input = str_to_int(sec, PUBLIC);
     unsigned char pub_input[] = {"0123456789012345678901234567890123456789012345678901234567890123"};
-    sha.opt_digest(dig,sec_input,pub_input,64);
+    sha.opt_digest(dig, sec_input, pub_input, 64);
 
-    for(int i = 0; i < sha.DIGLEN; i++){
+    for (int i = 0; i < sha.DIGLEN; i++) {
         cout << hex << dig[i];
     }
     cout << endl;
@@ -61,6 +60,20 @@ void hmac_sha256test() {
     delete[] dig;
 }
 
+void opt_hmac_sha256test() {
+    HMAC_SHA_256 hmac256 = HMAC_SHA_256();
+    Integer* dig = new Integer[hmac256.DIGLEN];
+
+    string key_str = "01234567890123456789012345678901";
+    unsigned char msg[] = {"master secret0123456789012345678901234567890101234567890123456789012345678901"};
+    Integer key = str_to_int(key_str, PUBLIC);
+    auto start = clock_start();
+    hmac256.opt_hmac_sha_256(dig, key, msg, 77);
+    cout << "time: " << time_from(start) << "us" << endl;
+    cout << "hmac_sha256: ";
+    print_hex_32(dig, hmac256.DIGLEN);
+    delete[] dig;
+}
 void hmac_sha256circ() {
     HMAC_SHA_256 hmac = HMAC_SHA_256();
     Integer* dig = new Integer[hmac.DIGLEN];
@@ -78,8 +91,48 @@ void hmac_sha256circ() {
     hmac.hmac_sha_256(dig, key, msg);
     cout << "time: " << time_from(start) << "us" << endl;
 
-    cout << "CALL SHA256: " << hmac.SHA256_call << " times" << endl;
+    cout << "CALL Compression Function: " << hmac.compression_call << " times" << endl;
+    cout << "hmac_sha256: ";
+    print_hex_32(dig, hmac.DIGLEN);
     delete[] dig;
+}
+
+void opt_hmac_sha256circ() {
+    HMAC_SHA_256 hmac = HMAC_SHA_256();
+    Integer* dig = new Integer[hmac.DIGLEN];
+    int keylen = 256;
+    Integer keyA = Integer(keylen, 0, ALICE);
+
+    string key_str = "01234567890123456789012345678901";
+
+    Integer keyB = str_to_int(key_str, BOB);
+
+    Integer key = keyA ^ keyB;
+
+    unsigned char msg[] = {"master secret0123456789012345678901234567890101234567890123456789012345678901"};
+    auto start = clock_start();
+    hmac.opt_hmac_sha_256(dig, key, msg, 77);
+    cout << "time: " << time_from(start) << "us" << endl;
+
+    cout << "CALL Compression Function: " << hmac.compression_call << " times" << endl;
+    cout << "hmac_sha256: ";
+    print_hex_32(dig, hmac.DIGLEN);
+    delete[] dig;
+}
+
+void sha256_compressiontest() {
+    SHA_256 sha;
+    Integer* input = new Integer[sha.DIGLEN];
+
+    for (int i = 0; i < sha.DIGLEN; i++) {
+        input[i] = Integer(sha.WORDLEN, 0, ALICE);
+    }
+
+    Integer* chunk = new Integer[16];
+    for (int i = 0; i < 16; i++) {
+        chunk[i] = Integer(sha.WORDLEN, 1, ALICE);
+    }
+    sha.chunk_compress(input, chunk);
 }
 
 int main(int argc, char** argv) {
@@ -96,7 +149,11 @@ int main(int argc, char** argv) {
 
     //hmac_sha256circ();
     //sha256test();
-    optsha256test();
+    //optsha256test();
+    //hmac_sha256test();
+    //opt_hmac_sha256test();
+    opt_hmac_sha256circ();
+    //sha256_compressiontest();
     cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
 
