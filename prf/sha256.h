@@ -18,7 +18,7 @@ class SHA_256 {
     static const int KLEN = 64;
     static const int CHUNKLEN = 512;
 
-    int compression_call = 0;
+    int compression_calls_num = 0;
 
     const Integer sha256_h[VALLEN] = {Integer(WORDLEN, 0x6a09e667UL, PUBLIC), Integer(WORDLEN, 0xbb67ae85UL, PUBLIC), Integer(WORDLEN, 0x3c6ef372UL, PUBLIC), Integer(WORDLEN, 0xa54ff53aUL, PUBLIC),
                                       Integer(WORDLEN, 0x510e527fUL, PUBLIC), Integer(WORDLEN, 0x9b05688cUL, PUBLIC), Integer(WORDLEN, 0x1f83d9abUL, PUBLIC), Integer(WORDLEN, 0x5be0cd19UL, PUBLIC)};
@@ -162,7 +162,7 @@ class SHA_256 {
     }
 
     void chunk_compress(Integer* input_h, Integer* chunk) {
-        compression_call++;
+        compression_calls_num++;
         Integer* w = new Integer[KLEN];
         for (int i = 0; i < CHUNKLEN / WORDLEN; i++) //initiate w
             w[i] = chunk[i];
@@ -263,6 +263,10 @@ class SHA_256 {
     }
 
     inline void opt_digest(uint32_t* res, const Integer sec_input, unsigned char* pub_input, size_t pub_len) { opt_update(res, sec_input, pub_input, pub_len); }
+
+    inline size_t compression_calls(){
+        return compression_calls_num;
+    }
 };
 
 #endif

@@ -91,7 +91,7 @@ void hmac_sha256circ() {
     hmac.hmac_sha_256(dig, key, msg);
     cout << "time: " << time_from(start) << "us" << endl;
 
-    cout << "CALL Compression Function: " << hmac.compression_call << " times" << endl;
+    cout << "CALL Compression Function: " << hmac.compression_calls() << " times" << endl;
     cout << "hmac_sha256: ";
     print_hex_32(dig, hmac.DIGLEN);
     delete[] dig;
@@ -109,12 +109,12 @@ void opt_hmac_sha256circ() {
 
     Integer key = keyA ^ keyB;
 
-    unsigned char msg[] = {"master secret0123456789012345678901234567890101234567890123456789012345678901"};
+    unsigned char msg[] = {"master secret0123456789012345678901234567890101234567890123456789012345678902"};
     auto start = clock_start();
     hmac.opt_hmac_sha_256(dig, key, msg, 77);
     cout << "time: " << time_from(start) << "us" << endl;
 
-    cout << "CALL Compression Function: " << hmac.compression_call << " times" << endl;
+    cout << "CALL Compression Function: " << hmac.compression_calls() << " times" << endl;
     cout << "hmac_sha256: ";
     print_hex_32(dig, hmac.DIGLEN);
     delete[] dig;
