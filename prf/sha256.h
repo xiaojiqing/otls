@@ -112,7 +112,7 @@ class SHA_256 {
             chunk_compress(dig, input_data.data());
 
             for (int i = 0; i < VALLEN; i++) {
-                plain_dig[i] = dig[i].reveal<uint32_t>(PUBLIC);
+                plain_dig[i] = dig[i].reveal<uint32_t>(PUBLIC);//Xiao: Note that this will incur VALLEN roundtrips
             }
 
             delete[] dig;

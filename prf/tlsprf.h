@@ -60,6 +60,7 @@ class TLSPrf : public HMAC_SHA_256 {
             opt_hmac_sha_256(tmp, secret, A[i - 1], hashlen[i - 1]);
             hmac_calls_num++;
             A[i] = new unsigned char[32];
+				//Xiao: Note that this will incur DIGLEN roundtrips
             for (int j = 0, k = 0; j < DIGLEN; j++, k += 4) {
                 uint32_t tmpd = tmp[j].reveal<uint32_t>(PUBLIC);
                 A[i][k] = (tmpd >> 24);

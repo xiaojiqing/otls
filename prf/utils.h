@@ -22,12 +22,20 @@ inline Integer lrot(const Integer& rhs, int sht) {
 
 inline Integer str_to_int(string str, int party) {
     uint64_t mlen = str.length() * 8;
-    Integer res = Integer(mlen, 0, PUBLIC);
     std::reverse(str.begin(), str.end());
-    for (uint64_t i = 0; i < str.length(); i++) {
+    /*
+    Integer res = Integer(mlen, 0, PUBLIC);
+	for (uint64_t i = 0; i < str.length(); i++) {
         res = res | (Integer(mlen, (int)str[i], party) << (8 * i));
+    }*/
+	//Xiao: updated!	
+	uint8_t * tmp = new uint8_t[str.length()];
+    for (uint64_t i = 0; i < str.length(); i++) {
+			tmp[i] = (int)str[i];
     }
-    return res;
+	 Integer res(mlen, tmp, party); // note that this line could increase roundtrip
+	 delete[] tmp;
+	 return res;
 }
 
 inline void char_to_uint32(uint32_t* res, const char* in, size_t len){
