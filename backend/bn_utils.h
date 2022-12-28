@@ -32,4 +32,12 @@ inline void recv_bn(NetIO* io, BIGNUM*bn, Hash * hash = nullptr) {
 	BN_bin2bn(arr, length, bn);
 }
 
+inline bool isZero(const block * b) {
+	return _mm_testz_si128(*b,*b) > 0;
+}
+
+inline bool isOne(const block * b) {
+	__m128i neq = _mm_xor_si128(*b, all_one_block);
+	return _mm_testz_si128(neq, neq) > 0;
+}
 #endif// PADO_BN_UTILS_H__

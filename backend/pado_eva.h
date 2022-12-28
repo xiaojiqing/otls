@@ -4,9 +4,9 @@
 
 template<typename IO>
 class PADOEva: public PADOParty<IO> { public:
-	HalfGateEva<IO> * gc;
+	OptHalfGateEva<IO> * gc;
 	PRG prg;
-	PADOEva(IO *io, HalfGateEva<IO> * gc, IKNP<IO> * in_ot = nullptr): PADOParty<IO>(io, BOB, in_ot) {
+	PADOEva(IO *io, OptHalfGateEva<IO> * gc, IKNP<IO> * in_ot = nullptr): PADOParty<IO>(io, BOB, in_ot) {
 		this->gc = gc;
 		if(in_ot == nullptr) { 
 			this->ot->setup_recv();

@@ -6,8 +6,8 @@
 //TODO: preset batch_size
 template<typename IO>
 class PADOGen: public PADOParty<IO> { public:
-	HalfGateGen<IO> * gc;
-	PADOGen(IO* io, HalfGateGen<IO>* gc, IKNP<IO>* in_ot = nullptr): PADOParty<IO>(io, ALICE, in_ot) {
+	OptHalfGateGen<IO> * gc;
+	PADOGen(IO* io, OptHalfGateGen<IO>* gc, IKNP<IO>* in_ot = nullptr): PADOParty<IO>(io, ALICE, in_ot) {
 		this->gc = gc;
 		if(in_ot == nullptr) {
 			bool delta_bool[128];

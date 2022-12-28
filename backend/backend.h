@@ -1,6 +1,8 @@
 #ifndef PADO_BACKEND_H__
 #define PADO_BACKEND_H__
 #include "emp-tool/emp-tool.h"
+#include "backend/opt_hg_gen.h"
+#include "backend/opt_hg_eva.h"
 #include "backend/pado_gen.h"
 #include "backend/pado_eva.h"
 using namespace emp;
@@ -8,11 +10,11 @@ using namespace emp;
 template<typename IO>
 inline PADOParty<IO>* setup_backend(IO* io, int party, int batch_size = 1024) {
 	if(party == ALICE) {
-		HalfGateGen<IO> * t = new HalfGateGen<IO>(io);
+		OptHalfGateGen<IO> * t = new OptHalfGateGen<IO>(io);
 		CircuitExecution::circ_exec = t;
 		ProtocolExecution::prot_exec = new PADOGen<IO>(io, t);
 	} else {
-		HalfGateEva<IO> * t = new HalfGateEva<IO>(io);
+		OptHalfGateEva<IO> * t = new OptHalfGateEva<IO>(io);
 		CircuitExecution::circ_exec = t;
 		ProtocolExecution::prot_exec = new PADOEva<IO>(io, t);
 	}
@@ -25,7 +27,7 @@ inline void finalize_backend() {
 	delete ProtocolExecution::prot_exec;
 }
 
-template<typename IO>
+/*template<typename IO>
 inline PADOParty<IO>* swap_role(int party) {
 	PADOParty<IO>* p = (PADOParty<IO>*)ProtocolExecution::prot_exec;
 	if(p->cur_party == party) {
@@ -56,5 +58,5 @@ inline PADOParty<IO>* swap_role(int party) {
 		ProtocolExecution::prot_exec = pro;
 	}
 	return (PADOParty<IO>*)ProtocolExecution::prot_exec;
-}
+}*/
 #endif
