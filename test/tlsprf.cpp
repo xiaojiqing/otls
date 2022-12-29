@@ -1,6 +1,7 @@
 #include "emp-tool/emp-tool.h"
 #include "backend/backend.h"
 #include "prf/tlsprf.h"
+#include "prf/hmac_sha256.h"
 
 #include <iostream>
 #include <vector>
@@ -29,7 +30,9 @@ void tlsprf_test() {
 
     Integer res;
     TLSPrf tlsprf;
-    tlsprf.prf(res, 800, secret, label, seed);
+    HMAC_SHA_256 hmac;
+    tlsprf.init(hmac, secret);
+    tlsprf.prf(hmac, res, 800, secret, label, seed);
 
     //assert(output == res);
     if ((output == res).reveal<bool>(PUBLIC)) {
@@ -37,7 +40,7 @@ void tlsprf_test() {
     } else {
         cout << "test failed!" << endl;
     }
-    cout << tlsprf.compression_calls() << endl;
+    cout << hmac.compression_calls() << endl;
 }
 
 void opt_tlsprf_test() {
@@ -62,7 +65,9 @@ void opt_tlsprf_test() {
 
     Integer res;
     TLSPrf tlsprf;
-    tlsprf.opt_prf(res, 800, secret, label, label_u.size(), seed, seed_u.size());
+    HMAC_SHA_256 hmac;
+    tlsprf.init(hmac, secret);
+    tlsprf.opt_prf(hmac, res, 800, secret, label, label_u.size(), seed, seed_u.size(), true, true);
 
     //assert(output == res);
     if ((output == res).reveal<bool>(PUBLIC)) {
@@ -70,7 +75,7 @@ void opt_tlsprf_test() {
     } else {
         cout << "test failed" << endl;
     }
-    cout << tlsprf.compression_calls() << endl;
+    cout << hmac.compression_calls() << endl;
 }
 
 void opt_tlsprf_circ_test() {
@@ -84,9 +89,12 @@ void opt_tlsprf_circ_test() {
     Integer secret(sec_len, secret_u.data(), ALICE);
     TLSPrf tlsprf;
     Integer res;
-    tlsprf.opt_prf(res, 48 * 8, secret, label, label_len, seed, seed_len);
+    HMAC_SHA_256 hmac;
 
-    cout << "Call Compression Function: " << tlsprf.compression_calls() << " times" << endl;
+    tlsprf.init(hmac, secret);
+    tlsprf.opt_prf(hmac, res, 48 * 8, secret, label, label_len, seed, seed_len, true, true);
+
+    cout << "Call Compression Function: " << hmac.compression_calls() << " times" << endl;
     cout << "Call HMAC-SHA256: " << tlsprf.hmac_calls() << " times" << endl;
 }
 
@@ -121,19 +129,23 @@ void handshake_prf_circ_test() {
     TLSPrf tlsprf;
     Integer pms(pms_len, pms_u.data(), ALICE);
 
+    HMAC_SHA_256 hmac;
+
     Integer ms;
-    tlsprf.opt_prf(ms, 384, pms, mk_label, mk_label_len, mk_seed, mk_seed_len);
+    tlsprf.init(hmac, pms);
+    tlsprf.opt_prf(hmac, ms, 384, pms, mk_label, mk_label_len, mk_seed, mk_seed_len, true, true);
 
     Integer sk;
-    tlsprf.opt_prf(sk, 320, ms, ke_label, ke_label_len, ke_seed, ke_seed_len);
+    tlsprf.init(hmac, ms);
+    tlsprf.opt_prf(hmac, sk, 320, ms, ke_label, ke_label_len, ke_seed, ke_seed_len, true, true);
 
     Integer ucfin;
-    tlsprf.opt_prf(ucfin, 96, ms, cfin_label, cfin_label_len, ctau, ctau_len);
+    tlsprf.opt_prf(hmac, ucfin, 96, ms, cfin_label, cfin_label_len, ctau, ctau_len, true, true);
 
     Integer usfin;
-    tlsprf.opt_prf(usfin, 96, ms, sfin_label, sfin_label_len, stau, stau_len);
+    tlsprf.opt_prf(hmac, usfin, 96, ms, sfin_label, sfin_label_len, stau, stau_len, true, true);
 
-    cout << "Call Compression Function: " << tlsprf.compression_calls() << " times" << endl;
+    cout << "Call Compression Function: " << hmac.compression_calls() << " times" << endl;
     cout << "Call HMAC-SHA256: " << tlsprf.hmac_calls() << " times" << endl;
 }
 
@@ -148,6 +160,8 @@ int main(int argc, char** argv) {
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
     setup_backend(io, party);
 
+    //tlsprf_test();
+    //opt_tlsprf_test();
     //opt_tlsprf_circ_test();
     handshake_prf_circ_test();
     cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;

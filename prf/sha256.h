@@ -19,6 +19,10 @@ class SHA_256 {
     static const int CHUNKLEN = 512;
 
     int compression_calls_num = 0;
+    bool in_open_flag = false;
+    bool out_open_flag = false;
+    uint32_t in_dig[DIGLEN];
+    Integer out_dig[DIGLEN];
 
     const Integer sha256_h[VALLEN] = {Integer(WORDLEN, 0x6a09e667UL, PUBLIC), Integer(WORDLEN, 0xbb67ae85UL, PUBLIC), Integer(WORDLEN, 0x3c6ef372UL, PUBLIC), Integer(WORDLEN, 0xa54ff53aUL, PUBLIC),
                                       Integer(WORDLEN, 0x510e527fUL, PUBLIC), Integer(WORDLEN, 0x9b05688cUL, PUBLIC), Integer(WORDLEN, 0x1f83d9abUL, PUBLIC), Integer(WORDLEN, 0x5be0cd19UL, PUBLIC)};
@@ -63,7 +67,7 @@ class SHA_256 {
         concat(padded_input, &INTL, 1);
     }
 
-    void update(Integer* dig, const Integer padded_input) {
+    void update(Integer* dig, const Integer padded_input, bool out_flag = false) {
         uint64_t padded_len = padded_input.size();
         if (padded_len % CHUNKLEN == 0) {
             Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
@@ -81,7 +85,26 @@ class SHA_256 {
                 dig[i] = sha256_h[i];
 
             Integer* tmp_block = new Integer[CHUNKLEN / WORDLEN]; //CHUNKLEN/WORDLEN=16
-            for (uint64_t i = 0; i < num_chunk; i++) {
+            for (int j = 0; j < CHUNKLEN / WORDLEN; j++) {
+                tmp_block[j] = input_data[j];
+            }
+
+            if (out_flag == true) {
+                if (out_open_flag == false) {
+                    chunk_compress(dig, tmp_block);
+
+                    for (int i = 0; i < DIGLEN; i++)
+                        out_dig[i] = dig[i];
+                    out_open_flag = true;
+                } else {
+                    for (int i = 0; i < DIGLEN; i++)
+                        dig[i] = out_dig[i];
+                }
+            } else {
+                chunk_compress(dig, tmp_block);
+            }
+
+            for (uint64_t i = 1; i < num_chunk; i++) {
                 for (int j = 0; j < CHUNKLEN / WORDLEN; j++) {
                     tmp_block[j] = input_data[j + i * CHUNKLEN / WORDLEN];
                 }
@@ -92,7 +115,7 @@ class SHA_256 {
             error("wrong padding length!\n");
     }
 
-    void opt_update(uint32_t* plain_dig, const Integer sec_input, unsigned char* pub_input, size_t pub_len) {
+    void opt_update(uint32_t* plain_dig, const Integer sec_input, unsigned char* pub_input, size_t pub_len, bool in_flag = false) {
         uint64_t len = sec_input.size();
         if (len == CHUNKLEN) {
             Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
@@ -105,27 +128,40 @@ class SHA_256 {
                 }
             }
 
-            Integer* dig = new Integer[VALLEN];
-            for (int i = 0; i < VALLEN; i++)
-                dig[i] = sha256_h[i];
+            if (in_flag == true) {
+                if (in_open_flag == false) {
+                    Integer* dig = new Integer[VALLEN];
+                    for (int i = 0; i < VALLEN; i++)
+                        dig[i] = sha256_h[i];
+                    chunk_compress(dig, input_data.data());
+                    Integer tmpInt;
+                    for (int i = 0; i < VALLEN; ++i)
+                        tmpInt.bits.insert(tmpInt.bits.end(), std::begin(dig[i].bits), std::end(dig[i].bits));
+                    tmpInt.reveal<uint32_t>((uint32_t*)plain_dig, PUBLIC);
 
-            chunk_compress(dig, input_data.data());
+                    delete[] dig;
+                    for (int i = 0; i < DIGLEN; i++)
+                        in_dig[i] = plain_dig[i];
 
-/*            for (int i = 0; i < VALLEN; i++) {
-                plain_dig[i] = dig[i].reveal<uint32_t>(PUBLIC);//Xiao: Note that this will incur VALLEN roundtrips
+                    in_open_flag = true;
+                } else {
+                    for (int i = 0; i < DIGLEN; i++) {
+                        plain_dig[i] = in_dig[i];
+                    }
+                }
+            } else {
+                Integer* dig = new Integer[VALLEN];
+                for (int i = 0; i < VALLEN; i++)
+                    dig[i] = sha256_h[i];
+
+                chunk_compress(dig, input_data.data());
+                Integer tmpInt;
+                for (int i = 0; i < VALLEN; ++i)
+                    tmpInt.bits.insert(tmpInt.bits.end(), std::begin(dig[i].bits), std::end(dig[i].bits));
+                tmpInt.reveal<uint32_t>((uint32_t*)plain_dig, PUBLIC);
+
+                delete[] dig;
             }
-*/
-//
-				Integer tmpInt;
-				for(int i = 0; i < VALLEN; ++i)
-					tmpInt.bits.insert(tmpInt.bits.end(), 
-						std::begin(dig[i].bits),
-						std::end(dig[i].bits)
-					);
-				tmpInt.reveal<uint32_t>((uint32_t*)plain_dig, PUBLIC);
-//
-
-            delete[] dig;
 
             unsigned char* data = new unsigned char[KLEN];
             size_t datalen = 0, bitlen = 512;
@@ -266,17 +302,15 @@ class SHA_256 {
         delete[] w;
     }
 
-    inline void digest(Integer* res, Integer input) {
+    inline void digest(Integer* res, Integer input, bool out_flag = false) {
         Integer padded_input;
         padding(padded_input, input);
-        update(res, padded_input);
+        update(res, padded_input, out_flag);
     }
 
-    inline void opt_digest(uint32_t* res, const Integer sec_input, unsigned char* pub_input, size_t pub_len) { opt_update(res, sec_input, pub_input, pub_len); }
+    inline void opt_digest(uint32_t* res, const Integer sec_input, unsigned char* pub_input, size_t pub_len, bool in_flag = false) { opt_update(res, sec_input, pub_input, pub_len, in_flag); }
 
-    inline size_t compression_calls(){
-        return compression_calls_num;
-    }
+    inline size_t compression_calls() { return compression_calls_num; }
 };
 
 #endif

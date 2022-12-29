@@ -21,6 +21,9 @@ class HMAC_SHA_256 : public SHA_256 {
     Integer i_key_pad;
 
     inline void init(Integer key) {
+        in_open_flag = false;
+        out_open_flag = false;
+
         Integer pad_key;
 
         if (key.size() > CHUNKLEN) {
@@ -52,8 +55,9 @@ class HMAC_SHA_256 : public SHA_256 {
         i_key_pad = pad_key ^ i_pad;
     }
 
-    inline void hmac_sha_256(Integer* res, const Integer key, const Integer msg) {
-        init(key);
+    //    inline void hmac_sha_256(Integer* res, const Integer key, const Integer msg) {
+    inline void hmac_sha_256(Integer* res, const Integer msg) {
+        //init(key);
         Integer i_msg = i_key_pad;
         concat(i_msg, &msg, 1);
 
@@ -70,10 +74,11 @@ class HMAC_SHA_256 : public SHA_256 {
         delete[] tmp_dig;
     }
 
-    void opt_hmac_sha_256(Integer* res, const Integer key, unsigned char* msg, size_t len) {
-        init(key);
+    //    void opt_hmac_sha_256(Integer* res, const Integer key, unsigned char* msg, size_t len, bool in_flag = false, bool out_flag = false) {
+    void opt_hmac_sha_256(Integer* res, unsigned char* msg, size_t len, bool in_flag = false, bool out_flag = false) {
+        //init(key);
         uint32_t* dig = new uint32_t[DIGLEN];
-        opt_digest(dig, i_key_pad, msg, len);
+        opt_digest(dig, i_key_pad, msg, len, in_flag);
         SHA256_call++;
         Integer* o_msg = new Integer[DIGLEN];
         for (int i = 0; i < DIGLEN; i++) {
@@ -83,7 +88,7 @@ class HMAC_SHA_256 : public SHA_256 {
         Integer omsg = o_key_pad;
         concat(omsg, o_msg, DIGLEN);
 
-        digest(res, omsg);
+        digest(res, omsg, out_flag);
         SHA256_call++;
         delete[] dig;
         delete[] o_msg;
