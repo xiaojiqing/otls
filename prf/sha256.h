@@ -111,9 +111,19 @@ class SHA_256 {
 
             chunk_compress(dig, input_data.data());
 
-            for (int i = 0; i < VALLEN; i++) {
+/*            for (int i = 0; i < VALLEN; i++) {
                 plain_dig[i] = dig[i].reveal<uint32_t>(PUBLIC);//Xiao: Note that this will incur VALLEN roundtrips
             }
+*/
+//
+				Integer tmpInt;
+				for(int i = 0; i < VALLEN; ++i)
+					tmpInt.bits.insert(tmpInt.bits.end(), 
+						std::begin(dig[i].bits),
+						std::end(dig[i].bits)
+					);
+				tmpInt.reveal<uint32_t>((uint32_t*)plain_dig, PUBLIC);
+//
 
             delete[] dig;
 
