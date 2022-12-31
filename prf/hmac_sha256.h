@@ -75,7 +75,11 @@ class HMAC_SHA_256 : public SHA_256 {
     }
 
     //    void opt_hmac_sha_256(Integer* res, const Integer key, unsigned char* msg, size_t len, bool in_flag = false, bool out_flag = false) {
-    void opt_hmac_sha_256(Integer* res, unsigned char* msg, size_t len, bool in_flag = false, bool out_flag = false) {
+    void opt_hmac_sha_256(Integer* res,
+                          unsigned char* msg,
+                          size_t len,
+                          bool in_flag = false,
+                          bool out_flag = false) {
         //init(key);
         uint32_t* dig = new uint32_t[DIGLEN];
         opt_digest(dig, i_key_pad, msg, len, in_flag);

@@ -74,7 +74,8 @@ int main(int argc, char** argv) {
 
     aes_test();
 
-    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
+    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and()
+         << endl;
     finalize_backend();
     delete io;
     //mul_test();

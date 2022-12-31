@@ -17,7 +17,8 @@ void sha256test() {
     Integer* dig = new Integer[sha.DIGLEN];
     vector<uint32_t> outhex;
 
-    string str = "01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123";
+    string str =
+      "01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123";
 
     Integer input = str_to_int(str, PUBLIC);
     auto start = clock_start();
@@ -31,9 +32,11 @@ void sha256test() {
 void optsha256test() {
     SHA_256 sha;
     uint32_t* dig = new uint32_t[sha.DIGLEN];
-    string sec = "0123456789012345678901234567890123456789012345678901234567890123";
+    string sec =
+      "0123456789012345678901234567890123456789012345678901234567890123";
     Integer sec_input = str_to_int(sec, PUBLIC);
-    unsigned char pub_input[] = {"0123456789012345678901234567890123456789012345678901234567890123"};
+    unsigned char pub_input[] = {
+      "0123456789012345678901234567890123456789012345678901234567890123"};
     sha.opt_digest(dig, sec_input, pub_input, 64);
 
     for (int i = 0; i < sha.DIGLEN; i++) {
@@ -47,7 +50,8 @@ void hmac_sha256test() {
     Integer* dig = new Integer[hmac256.DIGLEN];
 
     string key_str = "01234567890123456789012345678901";
-    string msg_str = "master secret0123456789012345678901234567890101234567890123456789012345678901";
+    string msg_str =
+      "master secret0123456789012345678901234567890101234567890123456789012345678901";
     Integer key = str_to_int(key_str, PUBLIC);
     Integer msg = str_to_int(msg_str, PUBLIC);
     auto start = clock_start();
@@ -66,7 +70,8 @@ void opt_hmac_sha256test() {
     Integer* dig = new Integer[hmac256.DIGLEN];
 
     string key_str = "01234567890123456789012345678901";
-    unsigned char msg[] = {"master secret0123456789012345678901234567890101234567890123456789012345678901"};
+    unsigned char msg[] = {
+      "master secret0123456789012345678901234567890101234567890123456789012345678901"};
     Integer key = str_to_int(key_str, PUBLIC);
     auto start = clock_start();
     hmac256.init(key);
@@ -94,7 +99,8 @@ void hmac_sha256circ() {
     hmac.hmac_sha_256(dig, msg);
     cout << "time: " << time_from(start) << "us" << endl;
 
-    cout << "CALL Compression Function: " << hmac.compression_calls() << " times" << endl;
+    cout << "CALL Compression Function: " << hmac.compression_calls()
+         << " times" << endl;
     cout << "hmac_sha256: ";
     print_hex_32(dig, hmac.DIGLEN);
     delete[] dig;
@@ -112,13 +118,15 @@ void opt_hmac_sha256circ() {
 
     Integer key = keyA ^ keyB;
 
-    unsigned char msg[] = {"master secret0123456789012345678901234567890101234567890123456789012345678902"};
+    unsigned char msg[] = {
+      "master secret0123456789012345678901234567890101234567890123456789012345678902"};
     auto start = clock_start();
     hmac.init(key);
     hmac.opt_hmac_sha_256(dig, msg, 77, true, true);
     cout << "time: " << time_from(start) << "us" << endl;
 
-    cout << "CALL Compression Function: " << hmac.compression_calls() << " times" << endl;
+    cout << "CALL Compression Function: " << hmac.compression_calls()
+         << " times" << endl;
     cout << "hmac_sha256: ";
     print_hex_32(dig, hmac.DIGLEN);
     delete[] dig;
@@ -158,7 +166,8 @@ int main(int argc, char** argv) {
     //opt_hmac_sha256test();
     opt_hmac_sha256circ();
     //sha256_compressiontest();
-    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
+    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and()
+         << endl;
     finalize_backend();
 
     delete io;

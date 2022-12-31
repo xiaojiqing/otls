@@ -13,9 +13,15 @@ class TLSPrf {
     ~TLSPrf(){};
     size_t hmac_calls_num = 0;
 
-    inline void init(HMAC_SHA_256& hmac, const Integer secret) { hmac.init(secret); }
+    inline void init(HMAC_SHA_256& hmac, const Integer secret) {
+        hmac.init(secret);
+    }
 
-    inline void phash(HMAC_SHA_256& hmac, Integer& res, size_t bitlen, const Integer secret, const Integer seed) {
+    inline void phash(HMAC_SHA_256& hmac,
+                      Integer& res,
+                      size_t bitlen,
+                      const Integer secret,
+                      const Integer seed) {
         size_t blks = bitlen / (hmac.DIGLEN * hmac.WORDLEN) + 1;
         Integer* A = new Integer[blks + 1];
         Integer* res_tmp = new Integer[blks];
@@ -40,14 +46,23 @@ class TLSPrf {
         }
 
         concat(res, res_tmp, blks);
-        res.bits.erase(res.bits.begin(), res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
+        res.bits.erase(
+          res.bits.begin(),
+          res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
 
         delete[] A;
         delete[] tmp;
         delete[] res_tmp;
     }
 
-    inline void opt_phash(HMAC_SHA_256& hmac, Integer& res, size_t bitlen, const Integer secret, const unsigned char* seed, size_t seedlen, bool in_flag = false, bool out_flag = false) {
+    inline void opt_phash(HMAC_SHA_256& hmac,
+                          Integer& res,
+                          size_t bitlen,
+                          const Integer secret,
+                          const unsigned char* seed,
+                          size_t seedlen,
+                          bool in_flag = false,
+                          bool out_flag = false) {
         size_t blks = bitlen / (hmac.DIGLEN * hmac.WORDLEN) + 1;
         vector<unsigned char*> A;
         vector<size_t> hashlen;
@@ -64,14 +79,16 @@ class TLSPrf {
         //        init(secret);
         for (int i = 1; i < blks + 1; i++) {
             // opt_hmac_sha_256(tmp, secret, A[i - 1], hashlen[i - 1]);
-            hmac.opt_hmac_sha_256(tmp, A[i - 1], hashlen[i - 1], in_flag, out_flag);
+            hmac.opt_hmac_sha_256(tmp, A[i - 1], hashlen[i - 1], in_flag,
+                                  out_flag);
             hmac_calls_num++;
             A[i] = new unsigned char[32];
 
             Integer tmpInt;
 
             for (int i = 0; i < hmac.VALLEN; ++i)
-                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(tmp[i].bits), std::end(tmp[i].bits));
+                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(tmp[i].bits),
+                                   std::end(tmp[i].bits));
             tmpInt.reveal<uint32_t>((uint32_t*)tmpd, PUBLIC);
 
             for (int j = 0, k = 0; j < hmac.DIGLEN; j++, k += 4) {
@@ -92,7 +109,9 @@ class TLSPrf {
         }
 
         concat(res, res_tmp, blks);
-        res.bits.erase(res.bits.begin(), res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
+        res.bits.erase(
+          res.bits.begin(),
+          res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
 
         for (int i = 0; i < blks + 1; i++) {
             delete[] A[i];
@@ -104,18 +123,33 @@ class TLSPrf {
         delete[] tmpd;
     }
 
-    inline void prf(HMAC_SHA_256& hmac, Integer& res, size_t bitlen, const Integer secret, const Integer label, const Integer seed) {
+    inline void prf(HMAC_SHA_256& hmac,
+                    Integer& res,
+                    size_t bitlen,
+                    const Integer secret,
+                    const Integer label,
+                    const Integer seed) {
         Integer label_seed;
         concat(label_seed, &label, 1);
         concat(label_seed, &seed, 1);
         phash(hmac, res, bitlen, secret, label_seed);
     }
 
-    inline void opt_prf(HMAC_SHA_256& hmac, Integer& res, size_t bitlen, const Integer secret, const unsigned char* label, size_t labellen, const unsigned char* seed, size_t seedlen, bool in_flag = false, bool out_flag = false) {
+    inline void opt_prf(HMAC_SHA_256& hmac,
+                        Integer& res,
+                        size_t bitlen,
+                        const Integer secret,
+                        const unsigned char* label,
+                        size_t labellen,
+                        const unsigned char* seed,
+                        size_t seedlen,
+                        bool in_flag = false,
+                        bool out_flag = false) {
         unsigned char* label_seed = new unsigned char[labellen + seedlen];
         memcpy(label_seed, label, labellen);
         memcpy(label_seed + labellen, seed, seedlen);
-        opt_phash(hmac, res, bitlen, secret, label_seed, labellen + seedlen, in_flag, out_flag);
+        opt_phash(hmac, res, bitlen, secret, label_seed, labellen + seedlen,
+                  in_flag, out_flag);
 
         delete[] label_seed;
     }
