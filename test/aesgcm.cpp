@@ -146,7 +146,6 @@ void aes_gcm_dec_test(NetIO* io, int party) {
       aesgcm.dec_finished_msg(io, msg, ctxt, ctxt_len, tag, iv, iv_len, aad, aad_len, party);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
-    cout << endl;
     if (party == ALICE) {
         cout << "ALICE res: " << res << endl;
         cout << "ALICE msg: ";
