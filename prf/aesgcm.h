@@ -76,16 +76,16 @@ class AES_GCM {
         }
     }
 
-    void enc(NetIO* io,
-             unsigned char* ctxt,
-             unsigned char* tag,
-             unsigned char* iv,
-             size_t iv_len,
-             unsigned char* msg,
-             size_t msg_len,
-             unsigned char* aad,
-             size_t aad_len,
-             int party) {
+    void enc_finished_msg(NetIO* io,
+                          unsigned char* ctxt,
+                          unsigned char* tag,
+                          unsigned char* iv,
+                          size_t iv_len,
+                          unsigned char* msg,
+                          size_t msg_len,
+                          unsigned char* aad,
+                          size_t aad_len,
+                          int party) {
         if (iv_len != 12) {
             error("invalid IV length!\n");
         }
@@ -115,7 +115,7 @@ class AES_GCM {
         reverse(z, z + msg_len);
 
         if (party == ALICE) {
-            // v = 128 * ceil(8*info_len/128) - info_len*8
+            // v = 128 * ceil(8*aad_len/128) - aad_len*8
             size_t v = 128 * ((aad_len * 8 + 128 - 1) / 128) - aad_len * 8;
 
             if (msg_len != 0) {
@@ -148,6 +148,7 @@ class AES_GCM {
             memcpy(tag, (unsigned char*)&t, 16);
             reverse(tag, tag + 16);
             io->send_data(tag, 16);
+            //io->flush();
 
             delete[] x;
         } else if (party == BOB) {
@@ -157,6 +158,7 @@ class AES_GCM {
             if (msg_len != 0) {
                 io->send_data(ctxt, msg_len);
             }
+            //io->flush();
             io->recv_data(tag, 16);
         }
 
@@ -164,14 +166,95 @@ class AES_GCM {
         delete[] z;
     }
 
-    void dec(NetIO* io,
-             unsigned char* msg,
-             unsigned char* ctxt,
-             size_t ctxt_len,
-             unsigned char* tag,
-             unsigned char* iv,
-             unsigned char* aad,
-             size_t aad_len,
-             int party) {}
+    bool dec_finished_msg(NetIO* io,
+                          unsigned char* msg,
+                          unsigned char* ctxt,
+                          size_t ctxt_len,
+                          unsigned char* tag,
+                          unsigned char* iv,
+                          size_t iv_len,
+                          unsigned char* aad,
+                          size_t aad_len,
+                          int party) {
+        if (iv_len != 12) {
+            error("invalid IV length!\n");
+        }
+        reverse(iv, iv + iv_len);
+        Integer J(96, iv, PUBLIC);
+        Integer ONE = Integer(32, 1, PUBLIC);
+        concat(J, &ONE, 1);
+
+        // u = 128 * ceil(ctxt_len/128) - 8*ctxt_len
+        size_t u = 128 * ((ctxt_len * 8 + 128 - 1) / 128) - ctxt_len * 8;
+
+        size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
+
+        Integer Z;
+        gctr(Z, J, 1 + ctr_len);
+
+        H.bits.insert(H.bits.end(), Z.bits.end() - 128, Z.bits.end());
+
+        block* h_z0 = new block[2];
+        H.reveal<block>((block*)h_z0, ALICE);
+
+        Z.bits.erase(Z.bits.end() - 128, Z.bits.end());
+        Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
+
+        unsigned char* z = new unsigned char[ctxt_len];
+        Z.reveal<unsigned char>((unsigned char*)z, BOB);
+        reverse(z, z + ctxt_len);
+
+        bool res = false;
+
+        if (party == ALICE) {
+            // v = 128 * ceil(8*aad_len/128) - aad_len*8
+            size_t v = 128 * ((aad_len * 8 + 128 - 1) / 128) - aad_len * 8;
+
+            size_t len = u / 8 + ctxt_len + v / 8 + aad_len + 16;
+
+            unsigned char* x = new unsigned char[len];
+
+            unsigned char ilen[8], mlen[8];
+            for (int i = 0; i < 8; i++) {
+                ilen[i] = (8 * aad_len) >> (7 - i) * 8;
+                mlen[i] = (8 * ctxt_len) >> (7 - i) * 8;
+            }
+
+            memcpy(x, aad, aad_len);
+            memset(x + aad_len, 0, v / 8);
+            memcpy(x + aad_len + v / 8, ctxt, ctxt_len);
+            memset(x + aad_len + v / 8 + ctxt_len, 0, u / 8);
+            memcpy(x + aad_len + v / 8 + ctxt_len + u / 8, ilen, 8);
+            memcpy(x + aad_len + v / 8 + ctxt_len + u / 8 + 8, mlen, 8);
+
+            reverse(x, x + len);
+            block* xblk = (block*)x;
+            reverse(xblk, xblk + (8 * len) / 128);
+
+            block t = ghash(h_z0[0], xblk, 8 * len / 128);
+            t = t ^ h_z0[1];
+
+            unsigned char* tagc = (unsigned char*)&t;
+            reverse(tagc, tagc + 16);
+
+            res = (memcmp(tag, tagc, 16) == 0);
+            io->send_bool(&res, 1);
+            // io->flush();
+
+            delete[] x;
+        } else if (party == BOB) {
+            res = false;
+            io->recv_bool(&res, 1);
+            if (res) {
+                for (int i = 0; i < ctxt_len; i++) {
+                    msg[i] = ctxt[i] ^ z[i];
+                }
+            }
+        }
+
+        delete[] h_z0;
+        delete[] z;
+        return res;
+    }
 };
 #endif
