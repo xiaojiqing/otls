@@ -5,18 +5,16 @@
 using namespace emp;
 
 static block R = makeBlock(0xe100000000000000, 0x00);
-const string circuit_file_location =
+static string circuit_file_location =
   macro_xstr(EMP_CIRCUIT_PATH) + string("bristol_fashion/");
-static BristolFashion aes =
-  BristolFashion((circuit_file_location + "aes_128.txt").c_str());
+static BristolFashion aes = BristolFashion((circuit_file_location + "aes_128.txt").c_str());
 
 inline block rsht(block x, size_t i) {
     uint64_t* data = (uint64_t*)&x;
     if (i == 0) {
         return x;
     } else if (i < 64) {
-        return makeBlock((data[1] >> i),
-                         (data[1] << (64 - i)) ^ (data[0] >> i));
+        return makeBlock((data[1] >> i), (data[1] << (64 - i)) ^ (data[0] >> i));
     } else if (i < 128) {
         return makeBlock(0x00, data[1] >> (i - 64));
     } else
@@ -43,22 +41,14 @@ inline block ghash(block h, block* x, size_t m) {
 class AES_GCM {
    public:
     Integer key;
-    Integer H;
-    AES_GCM(Integer _key) : key(_key) { H = computeH(); }
-
+    Integer H = Integer(128, 0, PUBLIC);
+    AES_GCM(Integer _key) : key(_key) { computeH(); }
     ~AES_GCM() {}
 
-    inline Integer computeH() {
-        Integer o;
-        Integer zero(128, 0, PUBLIC);
-        Bit* in = new Bit[256];
-        memcpy(in, key.bits.data(), 128);
-        memcpy(in + 128, zero.bits.data(), 128);
-
-        aes.compute(o.bits.data(), in);
-
-        delete[] in;
-        return o;
+    inline void computeH() {
+        Integer in(128, 0, PUBLIC);
+        concat(in, &key, 1);
+        aes.compute(H.bits.data(), in.bits.data());
     }
 
     inline Integer inc(Integer& counter, size_t s) {
@@ -75,46 +65,43 @@ class AES_GCM {
     }
 
     inline void gctr(Integer& res, Integer& counter, size_t m) {
-        Integer tmp;
-        Bit* content = new Bit[128];
-        memcpy(content, key.bits.data(), 128);
+        Integer tmp(128, 0, PUBLIC);
         for (int i = 0; i < m; i++) {
-            memcpy(content + 128, counter.bits.data(), 128);
-            aes.compute(tmp.bits.data(), content);
+            Integer content = counter;
+            concat(content, &key, 1);
+            aes.compute(tmp.bits.data(), content.bits.data());
 
             concat(res, &tmp, 1);
             counter = inc(counter, 32);
         }
-        delete[] content;
     }
 
-    inline void enc(NetIO* io,
-                    unsigned char* ctxt,
-                    unsigned char* tag,
-                    unsigned char* iv,
-                    unsigned char* msg,
-                    size_t m,
-                    unsigned char* aInfo,
-                    size_t info_len,
-                    int party) {
-        if (sizeof(iv) != 12) {
-            error("invalid IV length!");
+    void enc(NetIO* io,
+             unsigned char* ctxt,
+             unsigned char* tag,
+             unsigned char* iv,
+             size_t iv_len,
+             unsigned char* msg,
+             size_t msg_len,
+             unsigned char* aad,
+             size_t aad_len,
+             int party) {
+        if (iv_len != 12) {
+            error("invalid IV length!\n");
         }
-        reverse(iv, iv + sizeof(iv));
+        reverse(iv, iv + iv_len);
         Integer J(96, iv, PUBLIC);
         Integer ONE = Integer(32, 1, PUBLIC);
         concat(J, &ONE, 1);
 
-        size_t u =
-          128 * ((m * 8 + 128 - 1) / 128) - m * 8; // 128 * ceil(8m/128) - 8m
-        // size_t v = 128 * ((info_len * 8 + 128 - 1) / 128) - info_len * 8; // 128 *
-        // ceil(8*info_len/128) - info_len*8
-        size_t ctr_len = (m * 8 + 128 - 1) / 128;
+        // u = 128 * ceil(msg_len/128) - 8*msg_len
+        size_t u = 128 * ((msg_len * 8 + 128 - 1) / 128) - msg_len * 8;
+
+        size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
 
         Integer Z;
         gctr(Z, J, 1 + ctr_len);
 
-        // Integer H = computeH();
         H.bits.insert(H.bits.end(), Z.bits.end() - 128, Z.bits.end());
 
         block* h_z0 = new block[2];
@@ -123,36 +110,53 @@ class AES_GCM {
         Z.bits.erase(Z.bits.end() - 128, Z.bits.end());
         Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
 
-        unsigned char* z = new unsigned char[u / 8];
+        unsigned char* z = new unsigned char[msg_len];
         Z.reveal<unsigned char>((unsigned char*)z, BOB);
+        reverse(z, z + msg_len);
 
         if (party == ALICE) {
-            size_t v = 128 * ((info_len * 8 + 128 - 1) / 128) -
-                       info_len * 8; // 128 * ceil(8*info_len/128) - info_len*8
+            // v = 128 * ceil(8*info_len/128) - info_len*8
+            size_t v = 128 * ((aad_len * 8 + 128 - 1) / 128) - aad_len * 8;
 
-            io->recv_data(ctxt, m);
-            unsigned char* x =
-              new unsigned char[u / 8 + m + v / 8 + info_len + 16];
-            memcpy(x, aInfo, info_len);
-            memset(x + info_len, 0, v / 8);
-            memcpy(x + info_len + v / 8, ctxt, m);
-            memset(x + info_len + v / 8 + m, 0, u / 8);
-            memcpy(x + info_len + v / 8 + m + u / 8, (unsigned char*)&info_len,
-                   8);
-            memcpy(x + info_len + v / 8 + m + u / 8 + 8, (unsigned char*)&m, 8);
+            if (msg_len != 0) {
+                io->recv_data(ctxt, msg_len);
+            }
+            size_t len = u / 8 + msg_len + v / 8 + aad_len + 16;
 
-            block* xblk = (block*)&x;
-            block t =
-              ghash(h_z0[0], xblk, (u + 8 * m + v + 8 * info_len) / 128 + 1);
+            unsigned char* x = new unsigned char[len];
+
+            unsigned char ilen[8], mlen[8];
+            for (int i = 0; i < 8; i++) {
+                ilen[i] = (8 * aad_len) >> (7 - i) * 8;
+                mlen[i] = (8 * msg_len) >> (7 - i) * 8;
+            }
+
+            memcpy(x, aad, aad_len);
+            memset(x + aad_len, 0, v / 8);
+            memcpy(x + aad_len + v / 8, ctxt, msg_len);
+            memset(x + aad_len + v / 8 + msg_len, 0, u / 8);
+            memcpy(x + aad_len + v / 8 + msg_len + u / 8, ilen, 8);
+            memcpy(x + aad_len + v / 8 + msg_len + u / 8 + 8, mlen, 8);
+
+            reverse(x, x + len);
+            block* xblk = (block*)x;
+            reverse(xblk, xblk + (8 * len) / 128);
+
+            block t = ghash(h_z0[0], xblk, 8 * len / 128);
             t = t ^ h_z0[1];
-            tag = (unsigned char*)&t;
+
+            memcpy(tag, (unsigned char*)&t, 16);
+            reverse(tag, tag + 16);
             io->send_data(tag, 16);
+
             delete[] x;
         } else if (party == BOB) {
-            for (int i = 0; i < m; i++) {
+            for (int i = 0; i < msg_len; i++) {
                 ctxt[i] = z[i] ^ msg[i];
             }
-            io->send_data(ctxt, m);
+            if (msg_len != 0) {
+                io->send_data(ctxt, msg_len);
+            }
             io->recv_data(tag, 16);
         }
 
@@ -160,35 +164,14 @@ class AES_GCM {
         delete[] z;
     }
 
-    // inline void dec(NetIO* io, unsigned char* msg, unsigned char* ctxt, size_t m, unsigned char*
-    // tag, unsigned char* iv, unsigned char* aInfo, size_t info_len, int party) {
-    //     if (sizeof(iv) != 12) {
-    //         error("invalid IV length!");
-    //     }
-    //     reverse(iv, iv + sizeof(iv));
-
-    //     Integer J(96, iv, PUBLIC);
-    //     Integer ONE = Integer(32, 1, PUBLIC);
-    //     concat(J, &ONE, 1);
-
-    //     size_t u = 128 * ((m * 8 + 128 - 1) / 128) - m * 8; // 128 * ceil(8m/128) -8m
-    //     size_t v = 128 * ((info_len * 8 + 128 - 1) / 128) - info_len * 8; // 128*
-    //     ceil(8*info_len/128)-info_len*8 size_t ctr_len = (m * 8 + 128 - 1) / 128;
-
-    //     Integer Z;
-    //     gctr(Z, J, 1 + ctr_len);
-
-    //     Integer H = computeH();
-    //     H.bits.insert(H.bits.end(), Z.bits.end() - 128, Z.bits.end());
-
-    //     block* h_z0 = new block[2];
-    //     H.reveal<block>((block*)h_z0, ALICE);
-
-    //     Z.bits.erase(Z.bits.end() - 128, Z.bits.end());
-    //     Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
-
-    //     unsigned char* z = new unsigned char[u / 8];
-    //     Z.reveal<unsigned char>((unsigned char*)z, BOB);
-    // }
+    void dec(NetIO* io,
+             unsigned char* msg,
+             unsigned char* ctxt,
+             size_t ctxt_len,
+             unsigned char* tag,
+             unsigned char* iv,
+             unsigned char* aad,
+             size_t aad_len,
+             int party) {}
 };
 #endif

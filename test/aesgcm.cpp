@@ -36,34 +36,63 @@ void mul_test() {
     cout << mulBlock(a, b) << endl;
 }
 
-void ghash_test() {
-    // block h = makeBlock(0xb83b533708bf535d, 0x0aa6e52980d53b78);
-    // block a = zero_block;
-    // block c1 = makeBlock(0x42831ec221777424, 0x4b7221b784d0d49c);
-    // block c2 = makeBlock(0xe3aa212f2c02a4e0, 0x35c17e2329aca12e);
-    // block c3 = makeBlock(0x21d514b25466931c, 0x7d8f6a5aac84aa05);
-    // block c4 = makeBlock(0x1ba30b396a0aac97, 0x3d58e091473f5985);
-    // block x[5] = {a, c1, c2, c3, c4};
-    // //cout << ghash(h, x, 5) << endl;
+void aes_test() {
+    unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+                            0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
+    reverse(keyc, keyc + 16);
+    Integer key(128, keyc, ALICE);
+    cout << key.reveal<string>() << endl;
 
-    block a = makeBlock(0x7b5b546573745665, 0x63746f725d53475d);
-    block b = makeBlock(0x4869285368617929, 0x5b477565726f6e5d);
-    block res = zero_block;
-    gfmul(a, b, &res);
-    cout << res << endl;
-    cout << mulBlock(a, b) << endl;
+    Integer c(128, 0, PUBLIC);
+    concat(c, &key, 1);
+
+    Integer o(128, 0, PUBLIC);
+    aes.compute(o.bits.data(), c.bits.data());
+    cout << o.reveal<string>(PUBLIC) << endl;
 }
 
-void aes_test() {
-    Integer a(128, 2, ALICE);
-    Integer b(128, 0, PUBLIC);
-    Bit* c = new Bit[256];
-    memcpy(c, a.bits.data(), 128);
-    memcpy(c + 128, b.bits.data(), 128);
-    Integer o(128, 0, PUBLIC);
-    aes.compute(o.bits.data(), c);
-    cout << o.reveal<string>() << endl;
-    delete[] c;
+void aes_gcm_test(NetIO* io, int party) {
+    unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+                            0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
+    reverse(keyc, keyc + 16);
+    Integer key(128, keyc, ALICE);
+    
+    unsigned char msg[] = {0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5, 0xa5, 0x59,
+                           0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a, 0x86, 0xa7, 0xa9, 0x53,
+                           0x15, 0x34, 0xf7, 0xda, 0x2e, 0x4c, 0x30, 0x3d, 0x8a, 0x31,
+                           0x8a, 0x72, 0x1c, 0x3c, 0x0c, 0x95, 0x95, 0x68, 0x09, 0x53,
+                           0x2f, 0xcf, 0x0e, 0x24, 0x49, 0xa6, 0xb5, 0x25, 0xb1, 0x6a,
+                           0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57, 0xba, 0x63, 0x7b, 0x39};
+    size_t msg_len = sizeof(msg);
+    unsigned char aad[] = {0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed,
+                           0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xab, 0xad, 0xda, 0xd2};
+
+    size_t aad_len = sizeof(aad);
+
+    unsigned char iv[] = {0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce,
+                          0xdb, 0xad, 0xde, 0xca, 0xf8, 0x88};
+
+    size_t iv_len = sizeof(iv);
+
+    unsigned char* ctxt = new unsigned char[msg_len];
+    unsigned char tag[16];
+
+    AES_GCM aesgcm(key);
+    aesgcm.enc(io, ctxt, tag, iv, iv_len, msg, msg_len, aad, aad_len, party);
+
+    cout << "tag: ";
+    for (int i = 0; i < 16; i++) {
+        cout << hex << (int)tag[i];
+    }
+    cout << endl;
+
+    cout << "ctxt: ";
+    for (int i = 0; i < msg_len; i++) {
+        cout << hex << (int)ctxt[i];
+    }
+    cout << endl;
+
+    delete[] ctxt;
 }
 
 int main(int argc, char** argv) {
@@ -72,11 +101,10 @@ int main(int argc, char** argv) {
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
     setup_backend(io, party);
 
-    aes_test();
-
-    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and()
-         << endl;
+    //aes_test();
+    aes_gcm_test(io, party);
+    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
     delete io;
-    //mul_test();
+    // mul_test();
 }
