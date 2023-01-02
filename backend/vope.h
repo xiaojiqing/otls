@@ -29,17 +29,16 @@ class VOPE { public:
 			M[i] = M[i] ^ diff[bits[i]];
 		}
 
-		for(int i = 0; i < length; ++i)
-			pack.packing(M+i, M+i*128);
 		block * U = M + length;
 		block *t1 = M + 2*length;
 		block *t2 = M + 3*length;
-		for(int i = 0; i < length; ++i)
-			U[i] = bool_to_block(bits+i*128);
+		for(int i = 0; i < length; ++i) {
+			pack.packing(M+i, M + i*128);
+			U[i] = bool_to_block(bits + i * 128);
+		}
 		//M = K + U Delta
 		out[0] = M[0];
 		out[1] = U[0];
-		cout <<"B:"<< out[1][0]<<endl;
 		for(int i = 1; i < length; ++i) {
 			for(int j = 0; j <= i; ++j) {
 				t1[j] = mulBlock(out[j], M[i]);
@@ -62,7 +61,7 @@ class VOPE { public:
 		pack.packing(out, K);
 		block tmp;
 		for(int i = 1; i < length; ++i) {
-			pack.packing(&tmp, K+i*128);
+			pack.packing(&tmp, K + i * 128);
 			*out = mulBlock(*out, tmp);
 		}
 		delete[] K;

@@ -7,7 +7,7 @@ using namespace emp;
 
 int main(int argc, char** argv) {
 	int port, party;
-	const int num_vope = 6;
+	const int num_vope = 5;
 	parse_party_and_port(argv, &party, &port);
 	NetIO* ios[1];
 	for(int i = 0; i < 1; ++i)
@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
 	out.resize(num_vope+1);
 	block h;
 	PRG prg; prg.random_data(&h, sizeof(block));
-	prg.random_data(out.data(), num_vope*sizeof(block));
+	
 
 	auto t1 = clock_start();
 	VOPE<NetIO> vope(ios[0], cot);
@@ -42,12 +42,13 @@ int main(int argc, char** argv) {
 	} else {
 		ios[0]->recv_data(&h, sizeof(block));
 		vector<block> hs;
-		hs.push_back(zero_block);
 		hs.push_back(h);
-		for(int i = 2; i < num_vope; ++i) 
+		for(int i = 1; i < num_vope; ++i) 
 			hs.push_back(mulBlock(hs.back(), h));
 		block tmp;
-		vector_inn_prdt_sum_red(&tmp, hs.data(), out.data(), num_vope+1);
+		vector_inn_prdt_sum_red(&tmp, hs.data(), out.data()+1, num_vope);
+		tmp = tmp ^ out[0];
+		cout <<"B:"<< tmp[0]<<endl;
 	}
 	//	delete cot;
 	finalize_backend();
