@@ -11,11 +11,11 @@ using namespace std;
 using namespace emp;
 using std::vector;
 
-class HMACSHA256 : public SHA256 {
+class HMAC_SHA256 : public SHA256 {
    public:
     int SHA256_call = 0;
-    HMACSHA256(){};
-    ~HMACSHA256(){};
+    HMAC_SHA256(){};
+    ~HMAC_SHA256(){};
 
     Integer o_key_pad;
     Integer i_key_pad;
@@ -56,7 +56,7 @@ class HMACSHA256 : public SHA256 {
     }
 
     //    inline void hmac_sha_256(Integer* res, const Integer key, const Integer msg) {
-    inline void hmac_sha_256(Integer* res, const Integer msg) {
+    inline void hmac_sha256(Integer* res, const Integer msg) {
         //init(key);
         Integer i_msg = i_key_pad;
         concat(i_msg, &msg, 1);
@@ -75,7 +75,7 @@ class HMACSHA256 : public SHA256 {
     }
 
     //    void opt_hmac_sha_256(Integer* res, const Integer key, unsigned char* msg, size_t len, bool in_flag = false, bool out_flag = false) {
-    void opt_hmac_sha_256(Integer* res,
+    void opt_hmac_sha256(Integer* res,
                           unsigned char* msg,
                           size_t len,
                           bool in_flag = false,

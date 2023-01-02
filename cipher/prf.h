@@ -13,11 +13,11 @@ class PRF {
     ~PRF(){};
     size_t hmac_calls_num = 0;
 
-    inline void init(HMACSHA256& hmac, const Integer secret) {
+    inline void init(HMAC_SHA256& hmac, const Integer secret) {
         hmac.init(secret);
     }
 
-    inline void phash(HMACSHA256& hmac,
+    inline void phash(HMAC_SHA256& hmac,
                       Integer& res,
                       size_t bitlen,
                       const Integer secret,
@@ -28,10 +28,8 @@ class PRF {
         Integer* tmp = new Integer[hmac.DIGLEN];
 
         A[0] = seed;
-        //        init(secret);
         for (int i = 1; i < blks + 1; i++) {
-            // hmac_sha_256(tmp, secret, A[i - 1]);
-            hmac.hmac_sha_256(tmp, A[i - 1]);
+            hmac.hmac_sha256(tmp, A[i - 1]);
             hmac_calls_num++;
             concat(A[i], tmp, hmac.DIGLEN);
 
@@ -39,8 +37,7 @@ class PRF {
             concat(As, &A[i], 1);
             concat(As, &seed, 1);
 
-            // hmac_sha_256(tmp, secret, As);
-            hmac.hmac_sha_256(tmp, As);
+            hmac.hmac_sha256(tmp, As);
             hmac_calls_num++;
             concat(res_tmp[i - 1], tmp, hmac.DIGLEN);
         }
@@ -55,7 +52,7 @@ class PRF {
         delete[] res_tmp;
     }
 
-    inline void opt_phash(HMACSHA256& hmac,
+    inline void opt_phash(HMAC_SHA256& hmac,
                           Integer& res,
                           size_t bitlen,
                           const Integer secret,
@@ -76,10 +73,8 @@ class PRF {
         uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
 
         unsigned char* As = new unsigned char[32 + seedlen];
-        //        init(secret);
         for (int i = 1; i < blks + 1; i++) {
-            // opt_hmac_sha_256(tmp, secret, A[i - 1], hashlen[i - 1]);
-            hmac.opt_hmac_sha_256(tmp, A[i - 1], hashlen[i - 1], in_flag,
+            hmac.opt_hmac_sha256(tmp, A[i - 1], hashlen[i - 1], in_flag,
                                   out_flag);
             hmac_calls_num++;
             A[i] = new unsigned char[32];
@@ -102,8 +97,7 @@ class PRF {
             memcpy(As, A[i], 32);
             memcpy(As + 32, seed, seedlen);
 
-            // opt_hmac_sha_256(tmp, secret, As, 32 + seedlen);
-            hmac.opt_hmac_sha_256(tmp, As, 32 + seedlen, in_flag, out_flag);
+            hmac.opt_hmac_sha256(tmp, As, 32 + seedlen, in_flag, out_flag);
             hmac_calls_num++;
             concat(res_tmp[i - 1], tmp, hmac.DIGLEN);
         }
@@ -123,7 +117,7 @@ class PRF {
         delete[] tmpd;
     }
 
-    inline void compute(HMACSHA256& hmac,
+    inline void compute(HMAC_SHA256& hmac,
                     Integer& res,
                     size_t bitlen,
                     const Integer secret,
@@ -135,7 +129,7 @@ class PRF {
         phash(hmac, res, bitlen, secret, label_seed);
     }
 
-    inline void opt_compute(HMACSHA256& hmac,
+    inline void opt_compute(HMAC_SHA256& hmac,
                         Integer& res,
                         size_t bitlen,
                         const Integer secret,

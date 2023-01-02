@@ -46,7 +46,7 @@ void optsha256test() {
 }
 
 void hmac_sha256test() {
-    HMACSHA256 hmac256 = HMACSHA256();
+    HMAC_SHA256 hmac256;
     Integer* dig = new Integer[hmac256.DIGLEN];
 
     string key_str = "01234567890123456789012345678901";
@@ -56,7 +56,7 @@ void hmac_sha256test() {
     Integer msg = str_to_int(msg_str, PUBLIC);
     auto start = clock_start();
     hmac256.init(key);
-    hmac256.hmac_sha_256(dig, msg);
+    hmac256.hmac_sha256(dig, msg);
     cout << "time: " << time_from(start) << "us" << endl;
 
     // cout << "call: " << hmac256.SHA256_call << endl;
@@ -66,7 +66,7 @@ void hmac_sha256test() {
 }
 
 void opt_hmac_sha256test() {
-    HMACSHA256 hmac256 = HMACSHA256();
+    HMAC_SHA256 hmac256;
     Integer* dig = new Integer[hmac256.DIGLEN];
 
     string key_str = "01234567890123456789012345678901";
@@ -75,14 +75,14 @@ void opt_hmac_sha256test() {
     Integer key = str_to_int(key_str, PUBLIC);
     auto start = clock_start();
     hmac256.init(key);
-    hmac256.opt_hmac_sha_256(dig, msg, 77);
+    hmac256.opt_hmac_sha256(dig, msg, 77);
     cout << "time: " << time_from(start) << "us" << endl;
     cout << "hmac_sha256: ";
     print_hex_32(dig, hmac256.DIGLEN);
     delete[] dig;
 }
 void hmac_sha256circ() {
-    HMACSHA256 hmac = HMACSHA256();
+    HMAC_SHA256 hmac;
     Integer* dig = new Integer[hmac.DIGLEN];
     int keylen = 256;
     int msglen = 530;
@@ -96,7 +96,7 @@ void hmac_sha256circ() {
     Integer msg = msgA ^ msgB;
     auto start = clock_start();
     hmac.init(key);
-    hmac.hmac_sha_256(dig, msg);
+    hmac.hmac_sha256(dig, msg);
     cout << "time: " << time_from(start) << "us" << endl;
 
     cout << "CALL Compression Function: " << hmac.compression_calls()
@@ -107,7 +107,7 @@ void hmac_sha256circ() {
 }
 
 void opt_hmac_sha256circ() {
-    HMACSHA256 hmac = HMACSHA256();
+    HMAC_SHA256 hmac;
     Integer* dig = new Integer[hmac.DIGLEN];
     int keylen = 256;
     Integer keyA = Integer(keylen, 0, ALICE);
@@ -122,7 +122,7 @@ void opt_hmac_sha256circ() {
       "master secret0123456789012345678901234567890101234567890123456789012345678902"};
     auto start = clock_start();
     hmac.init(key);
-    hmac.opt_hmac_sha_256(dig, msg, 77, true, true);
+    hmac.opt_hmac_sha256(dig, msg, 77, true, true);
     cout << "time: " << time_from(start) << "us" << endl;
 
     cout << "CALL Compression Function: " << hmac.compression_calls()

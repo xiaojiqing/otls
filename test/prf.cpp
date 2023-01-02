@@ -38,7 +38,7 @@ void prf_test() {
 
     Integer res;
     PRF prf;
-    HMACSHA256 hmac;
+    HMAC_SHA256 hmac;
     prf.init(hmac, secret);
     prf.compute(hmac, res, 800, secret, label, seed);
 
@@ -81,7 +81,7 @@ void opt_prf_test() {
 
     Integer res;
     PRF prf;
-    HMACSHA256 hmac;
+    HMAC_SHA256 hmac;
     prf.init(hmac, secret);
     prf.opt_compute(hmac, res, 800, secret, label, label_u.size(), seed, seed_u.size(), true,
                    true);
@@ -110,7 +110,7 @@ void opt_prf_circ_test() {
     Integer secret(sec_len, secret_u.data(), ALICE);
     PRF prf;
     Integer res;
-    HMACSHA256 hmac;
+    HMAC_SHA256 hmac;
 
     prf.init(hmac, secret);
     prf.opt_compute(hmac, res, 48 * 8, secret, label, label_len, seed, seed_len, true, true);
@@ -155,7 +155,7 @@ void handshake_prf_circ_test() {
     PRF prf;
     Integer pms(pms_len, pms_u.data(), ALICE);
 
-    HMACSHA256 hmac;
+    HMAC_SHA256 hmac;
 
     Integer ms;
     auto start = emp::clock_start();
