@@ -17,22 +17,23 @@ class VOPE { public:
 	}
  
 	void compute_recv(block * out, int length) {
-		block * M = new block[length*128];
-		bool * bits = new bool[length*128];
-		PRG prg; prg.random_bool(bits, length*128);
-		ot->recv_cot(M, bits, length*128);
+		int oles = length * 2 - 1;
+		block * M = new block[oles*128];
+		bool * bits = new bool[oles*128];
+		PRG prg; prg.random_bool(bits, oles*128);
+		ot->recv_cot(M, bits, oles*128);
 		block diff[2];
 		diff[0] = zero_block;
 		io->recv_data(diff+1, sizeof(block));
 		
-		for(int i = 0; i < length*128; ++i) {
+		for(int i = 0; i < oles*128; ++i) {
 			M[i] = M[i] ^ diff[bits[i]];
 		}
 
-		block * U = M + length;
-		block *t1 = M + 2*length;
-		block *t2 = M + 3*length;
-		for(int i = 0; i < length; ++i) {
+		block * U = M + oles;
+		block *t1 = M + 2*oles;
+		block *t2 = M + 3*oles;
+		for(int i = 0; i < oles; ++i) {
 			pack.packing(M+i, M + i*128);
 			U[i] = bool_to_block(bits + i * 128);
 		}
@@ -48,13 +49,16 @@ class VOPE { public:
 			for(int j = 1; j <= i; ++j)
 				out[j] = t2[j-1] ^ t1[j];
 			out[i+1] = t2[i];
+			out[0] ^= M[length+i-1];
+			out[1] ^= U[length+i-1];
 		}
 		delete[] M;
 		delete[] bits;
 	}
 	void compute_send(block * out, block h, int length) {
-		block * K = new block[length*128];
-		ot->send_cot(K, length*128);
+		int oles = length * 2 - 1;
+		block * K = new block[oles*128];
+		ot->send_cot(K, oles*128);
 		block diff = h ^ ot->Delta;
 		io->send_data(&diff, sizeof(block));
 		io->flush();
@@ -63,6 +67,8 @@ class VOPE { public:
 		for(int i = 1; i < length; ++i) {
 			pack.packing(&tmp, K + i * 128);
 			*out = mulBlock(*out, tmp);
+			pack.packing(&tmp, K + (i+length-1) * 128);
+			*out = *out ^ tmp;	
 		}
 		delete[] K;
 	}
