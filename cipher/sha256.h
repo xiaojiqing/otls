@@ -10,7 +10,7 @@ using namespace std;
 using namespace emp;
 using std::vector;
 
-class SHA_256 {
+class SHA256 {
    public:
     static const int DIGLEN = 8;
     static const int VALLEN = 8;
@@ -77,8 +77,8 @@ class SHA_256 {
       0x5b9cca4fUL, 0x682e6ff3UL, 0x748f82eeUL, 0x78a5636fUL, 0x84c87814UL, 0x8cc70208UL,
       0x90befffaUL, 0xa4506cebUL, 0xbef9a3f7UL, 0xc67178f2UL};
 
-    SHA_256(){};
-    ~SHA_256(){};
+    SHA256(){};
+    ~SHA256(){};
 
     inline void padding(Integer& padded_input, const Integer input) {
         uint64_t L = input.size();

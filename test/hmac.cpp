@@ -1,6 +1,6 @@
 #include "emp-tool/emp-tool.h"
-#include "prf/sha256.h"
-#include "prf/hmac_sha256.h"
+#include "cipher/sha256.h"
+#include "cipher/hmac_sha256.h"
 #include "backend/backend.h"
 #include <iostream>
 #include <string>
@@ -13,7 +13,7 @@ using namespace std;
 using namespace emp;
 
 void sha256test() {
-    SHA_256 sha;
+    SHA256 sha;
     Integer* dig = new Integer[sha.DIGLEN];
     vector<uint32_t> outhex;
 
@@ -30,7 +30,7 @@ void sha256test() {
 }
 
 void optsha256test() {
-    SHA_256 sha;
+    SHA256 sha;
     uint32_t* dig = new uint32_t[sha.DIGLEN];
     string sec =
       "0123456789012345678901234567890123456789012345678901234567890123";
@@ -46,7 +46,7 @@ void optsha256test() {
 }
 
 void hmac_sha256test() {
-    HMAC_SHA_256 hmac256 = HMAC_SHA_256();
+    HMACSHA256 hmac256 = HMACSHA256();
     Integer* dig = new Integer[hmac256.DIGLEN];
 
     string key_str = "01234567890123456789012345678901";
@@ -66,7 +66,7 @@ void hmac_sha256test() {
 }
 
 void opt_hmac_sha256test() {
-    HMAC_SHA_256 hmac256 = HMAC_SHA_256();
+    HMACSHA256 hmac256 = HMACSHA256();
     Integer* dig = new Integer[hmac256.DIGLEN];
 
     string key_str = "01234567890123456789012345678901";
@@ -82,7 +82,7 @@ void opt_hmac_sha256test() {
     delete[] dig;
 }
 void hmac_sha256circ() {
-    HMAC_SHA_256 hmac = HMAC_SHA_256();
+    HMACSHA256 hmac = HMACSHA256();
     Integer* dig = new Integer[hmac.DIGLEN];
     int keylen = 256;
     int msglen = 530;
@@ -107,7 +107,7 @@ void hmac_sha256circ() {
 }
 
 void opt_hmac_sha256circ() {
-    HMAC_SHA_256 hmac = HMAC_SHA_256();
+    HMACSHA256 hmac = HMACSHA256();
     Integer* dig = new Integer[hmac.DIGLEN];
     int keylen = 256;
     Integer keyA = Integer(keylen, 0, ALICE);
@@ -133,7 +133,7 @@ void opt_hmac_sha256circ() {
 }
 
 void sha256_compressiontest() {
-    SHA_256 sha;
+    SHA256 sha;
     Integer* input = new Integer[sha.DIGLEN];
 
     for (int i = 0; i < sha.DIGLEN; i++) {

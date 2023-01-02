@@ -1,6 +1,6 @@
 #include "emp-tool/emp-tool.h"
 #include "backend/backend.h"
-#include "prf/aesgcm.h"
+#include "cipher/aesgcm.h"
 #include <iostream>
 
 using namespace emp;
@@ -78,7 +78,7 @@ void aes_gcm_enc_test(NetIO* io, int party) {
     unsigned char tag[16];
 
     auto start = emp::clock_start();
-    AES_GCM aesgcm(key);
+    AESGCM aesgcm(key);
     aesgcm.enc_finished_msg(io, ctxt, tag, iv, iv_len, msg, msg_len, aad, aad_len, party);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
@@ -141,7 +141,7 @@ void aes_gcm_dec_test(NetIO* io, int party) {
                            0x94, 0xfa, 0xe9, 0x5a, 0xe7, 0x12, 0x1a, 0x47};
 
     auto start = emp::clock_start();
-    AES_GCM aesgcm(key);
+    AESGCM aesgcm(key);
     bool res =
       aesgcm.dec_finished_msg(io, msg, ctxt, ctxt_len, tag, iv, iv_len, aad, aad_len, party);
 

@@ -7,17 +7,17 @@
 
 using namespace emp;
 
-class TLSPrf {
+class PRF {
    public:
-    TLSPrf(){};
-    ~TLSPrf(){};
+    PRF(){};
+    ~PRF(){};
     size_t hmac_calls_num = 0;
 
-    inline void init(HMAC_SHA_256& hmac, const Integer secret) {
+    inline void init(HMACSHA256& hmac, const Integer secret) {
         hmac.init(secret);
     }
 
-    inline void phash(HMAC_SHA_256& hmac,
+    inline void phash(HMACSHA256& hmac,
                       Integer& res,
                       size_t bitlen,
                       const Integer secret,
@@ -55,7 +55,7 @@ class TLSPrf {
         delete[] res_tmp;
     }
 
-    inline void opt_phash(HMAC_SHA_256& hmac,
+    inline void opt_phash(HMACSHA256& hmac,
                           Integer& res,
                           size_t bitlen,
                           const Integer secret,
@@ -123,7 +123,7 @@ class TLSPrf {
         delete[] tmpd;
     }
 
-    inline void prf(HMAC_SHA_256& hmac,
+    inline void compute(HMACSHA256& hmac,
                     Integer& res,
                     size_t bitlen,
                     const Integer secret,
@@ -135,7 +135,7 @@ class TLSPrf {
         phash(hmac, res, bitlen, secret, label_seed);
     }
 
-    inline void opt_prf(HMAC_SHA_256& hmac,
+    inline void opt_compute(HMACSHA256& hmac,
                         Integer& res,
                         size_t bitlen,
                         const Integer secret,

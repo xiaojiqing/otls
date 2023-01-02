@@ -38,12 +38,12 @@ inline block ghash(block h, block* x, size_t m) {
     }
     return y;
 }
-class AES_GCM {
+class AESGCM {
    public:
     Integer key;
     Integer H = Integer(128, 0, PUBLIC);
-    AES_GCM(Integer _key) : key(_key) { computeH(); }
-    ~AES_GCM() {}
+    AESGCM(Integer _key) : key(_key) { computeH(); }
+    ~AESGCM() {}
 
     inline void computeH() {
         Integer in(128, 0, PUBLIC);

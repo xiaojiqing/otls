@@ -11,11 +11,11 @@ using namespace std;
 using namespace emp;
 using std::vector;
 
-class HMAC_SHA_256 : public SHA_256 {
+class HMACSHA256 : public SHA256 {
    public:
     int SHA256_call = 0;
-    HMAC_SHA_256(){};
-    ~HMAC_SHA_256(){};
+    HMACSHA256(){};
+    ~HMACSHA256(){};
 
     Integer o_key_pad;
     Integer i_key_pad;
