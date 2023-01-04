@@ -84,7 +84,7 @@ void opt_prf_test() {
     HMAC_SHA256 hmac;
     prf.init(hmac, secret);
     prf.opt_compute(hmac, res, 800, secret, label, label_u.size(), seed, seed_u.size(), true,
-                   true);
+                    true);
 
     //assert(output == res);
     if ((output == res).reveal<bool>(PUBLIC)) {
@@ -113,7 +113,8 @@ void opt_prf_circ_test() {
     HMAC_SHA256 hmac;
 
     prf.init(hmac, secret);
-    prf.opt_compute(hmac, res, 48 * 8, secret, label, label_len, seed, seed_len, true, true);
+    //prf.opt_compute(hmac, res, 48 * 8, secret, label, label_len, seed, seed_len, true, true);
+    prf.opt_compute(hmac, res, 96, secret, label, label_len, seed, seed_len, true, true);
 
     cout << "Call Compression Function: " << hmac.compression_calls() << " times" << endl;
     cout << "Call HMAC-SHA256: " << prf.hmac_calls() << " times" << endl;
@@ -161,26 +162,99 @@ void handshake_prf_circ_test() {
     auto start = emp::clock_start();
     prf.init(hmac, pms);
     prf.opt_compute(hmac, ms, 384, pms, mk_label, mk_label_len, mk_seed, mk_seed_len, true,
-                   true);
+                    true);
 
     Integer sk;
     prf.init(hmac, ms);
     prf.opt_compute(hmac, sk, 320, ms, ke_label, ke_label_len, ke_seed, ke_seed_len, true,
-                   true);
+                    true);
 
     Integer ucfin;
     prf.opt_compute(hmac, ucfin, 96, ms, cfin_label, cfin_label_len, ctau, ctau_len, true,
-                   true);
+                    true);
 
     Integer usfin;
     prf.opt_compute(hmac, usfin, 96, ms, sfin_label, sfin_label_len, stau, stau_len, true,
-                   true);
+                    true);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
     cout << "Call Compression Function: " << hmac.compression_calls() << " times" << endl;
     cout << "Call HMAC-SHA256: " << prf.hmac_calls() << " times" << endl;
 }
 
+void nopt_handshake_prf_circ_test() {
+    vector<unsigned char> pms_u = {0x9b, 0xbe, 0x43, 0x6b, 0xa9, 0x40, 0xf0, 0x17,
+                                   0xb1, 0x76, 0x52, 0x84, 0x9a, 0x71, 0xdb, 0x35,
+                                   0x9b, 0xbe, 0x43, 0x6b, 0xa9, 0x40, 0xf0, 0x17,
+                                   0xb1, 0x76, 0x52, 0x84, 0x9a, 0x71, 0xdb, 0x35};
+    size_t pms_len = 256;
+
+    unsigned char mk_label[] = {"master key"};
+    // size_t mk_label_len = 10;
+
+    unsigned char ke_label[] = {"key expansion"};
+    // size_t ke_label_len = 13;
+
+    unsigned char cfin_label[] = {"client finished"};
+    // size_t cfin_label_len = 15;
+
+    unsigned char sfin_label[] = {"server finished"};
+    // size_t sfin_label_len = 15;
+
+    unsigned char mk_seed[] = {
+      "0123456789012345678901234567890123456789012345678901234567890123"};
+    // size_t mk_seed_len = 64;
+
+    unsigned char ke_seed[] = {
+      "2345678901234567890123456789012301234567890123456789012345678901"};
+    // size_t ke_seed_len = 64;
+
+    unsigned char ctau[] = {"01234567890123456789012345678901"};
+    // size_t ctau_len = 32;
+
+    unsigned char stau[] = {"67890123456789010123456789012345"};
+    // size_t stau_len = 32;
+
+    PRF prf;
+    Integer pms(pms_len, pms_u.data(), ALICE);
+
+    HMAC_SHA256 hmac;
+
+    Integer ms;
+    auto start = emp::clock_start();
+    prf.init(hmac, pms);
+    // prf.opt_compute(hmac, ms, 384, pms, mk_label, mk_label_len, mk_seed, mk_seed_len, true,
+    //                 true);
+    Integer mk_label_int(mk_label, PUBLIC);
+    Integer mk_seed_int(mk_seed, PUBLIC);
+    prf.compute(hmac, ms, 384, pms, mk_label_int, mk_seed_int);
+
+    Integer sk;
+    prf.init(hmac, ms);
+    // prf.opt_compute(hmac, sk, 320, ms, ke_label, ke_label_len, ke_seed, ke_seed_len, true,
+    //                 true);
+    Integer ke_label_int(ke_label, PUBLIC);
+    Integer ke_seed_int(ke_seed, PUBLIC);
+    prf.compute(hmac, sk, 320, ms, ke_label_int, ke_seed_int);
+
+    Integer ucfin;
+    Integer cfin_label_int(cfin_label, PUBLIC);
+    Integer cfin_seed_int(ctau, PUBLIC);
+    prf.compute(hmac, ucfin, 96, ms, cfin_label_int, cfin_seed_int);
+    // prf.opt_compute(hmac, ucfin, 96, ms, cfin_label, cfin_label_len, ctau, ctau_len, true,
+    //                 true);
+
+    Integer usfin;
+    Integer sfin_label_int(sfin_label, PUBLIC);
+    Integer sfin_seed_int(stau, PUBLIC);
+    prf.compute(hmac, usfin, 96, ms, sfin_label_int, sfin_seed_int);
+    // prf.opt_compute(hmac, usfin, 96, ms, sfin_label, sfin_label_len, stau, stau_len, true,
+    //                 true);
+
+    cout << "time: " << emp::time_from(start) << " us" << endl;
+    cout << "Call Compression Function: " << hmac.compression_calls() << " times" << endl;
+    cout << "Call HMAC-SHA256: " << prf.hmac_calls() << " times" << endl;
+}
 int main(int argc, char** argv) {
     // setup_plain_prot(false, "");
     // prf_test();
