@@ -140,10 +140,6 @@ class E2F {
         BN_mod_inverse(w, w, ole->q, ole->ctx);
         BN_mod_mul(eta, w, eta, ole->q, ole->ctx);
 
-        BIGNUM* tmp = BN_new();
-        BN_copy(tmp, eta);
-        open(tmp, party);
-
         BN_mod_sub(eta, eta, r, ole->q, ole->ctx); //epsilon3 = open(eta-r)
         open(eta, party);                          //open epsilon3
 
