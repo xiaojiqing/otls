@@ -9,11 +9,16 @@ int main(int argc, char** argv) {
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
     setup_backend(io, party);
-    BIGNUM *q = BN_new(), *n19 = BN_new();
-    BN_set_bit(q, 255);
-    BN_set_word(n19, 19);
-    BN_sub(q, q, n19); //2^255-19
+    // BIGNUM *q = BN_new(), *n19 = BN_new();
+    // BN_set_bit(q, 255);
+    // BN_set_word(n19, 19);
+    // BN_sub(q, q, n19); //2^255-19
+    // BN_CTX* ctx = BN_CTX_new();
+
+    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    BIGNUM* q = BN_new();
     BN_CTX* ctx = BN_CTX_new();
+    EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
 
     Integer a, b, c;
     unsigned char* achar = new unsigned char[32];
@@ -85,7 +90,7 @@ int main(int argc, char** argv) {
     BN_free(aint);
     BN_free(cint);
     BN_free(q);
-    BN_free(n19);
+    //BN_free(n19);
     BN_CTX_free(ctx);
     finalize_backend();
     delete io;

@@ -106,7 +106,7 @@ class E2F {
         }
     }
 
-    void compute_online(BIGNUM* out, BIGNUM* x, BIGNUM* y, int party) {
+    void compute_online(BIGNUM* out, const BIGNUM* x, const BIGNUM* y, int party) {
         BIGNUM* xbma = BN_new();
         BIGNUM* ybma = BN_new();
 

@@ -20,14 +20,17 @@ int main(int argc, char** argv) {
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
 
-    BIGNUM *q = BN_new(), *n19 = BN_new();
-    BN_set_bit(q, 255);
-    BN_set_word(n19, 19);
-    BN_sub(q, q, n19); //2^255-19
+    // BIGNUM *q = BN_new(), *n19 = BN_new();
+    // BN_set_bit(q, 255);
+    // BN_set_word(n19, 19);
+    // BN_sub(q, q, n19); //2^255-19
 
-    E2F<NetIO> e2f(ios[0], cot, q, 255);
-
+    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    BIGNUM* q = BN_new();
     BN_CTX* ctx = BN_CTX_new();
+    EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
+
+    E2F<NetIO> e2f(ios[0], cot, q, 256);
 
     auto start = emp::clock_start();
     e2f.compute_offline(party);
@@ -71,9 +74,9 @@ int main(int argc, char** argv) {
         BN_mod_sub(yba, yba, x, q, ctx);
 
         BN_mod_sub(out, out, yba, q, ctx);
-        if (BN_is_zero(out)){
+        if (BN_is_zero(out)) {
             cout << "test passed!" << endl;
-        }else{
+        } else {
             cout << "test failed!" << endl;
         }
         BN_free(xba);

@@ -86,9 +86,25 @@ class AESGCM {
    public:
     Integer key;
     Integer H = Integer(128, 0, PUBLIC);
-    AESGCM(Integer _key) : key(_key) { computeH(); }
+    Integer counter;
+    AESGCM(Integer& key, unsigned char* iv, size_t iv_len) : key(key) {
+        if (iv_len != 12) {
+            error("invalid IV length!\n");
+        }
+        reverse(iv, iv + iv_len);
+        counter = Integer(96, iv, PUBLIC);
+        Integer ONE = Integer(32, 1, PUBLIC);
+        concat(counter, &ONE, 1);
+
+        computeH();
+    }
     ~AESGCM() {}
 
+    //AESGCM(Integer _key) : key(_key) { computeH(); }
+    // inline void init(Integer& key) {
+    //     this->key = key;
+    //     computeH();
+    // }
     inline void computeH() {
         Integer in(128, 0, PUBLIC);
         concat(in, &key, 1);
@@ -108,7 +124,7 @@ class AESGCM {
         return msb;
     }
 
-    inline void gctr(Integer& res, Integer& counter, size_t m) {
+    inline void gctr(Integer& res, size_t m) {
         Integer tmp(128, 0, PUBLIC);
         for (int i = 0; i < m; i++) {
             Integer content = counter;
@@ -123,28 +139,18 @@ class AESGCM {
     void enc_finished_msg(NetIO* io,
                           unsigned char* ctxt,
                           unsigned char* tag,
-                          unsigned char* iv,
-                          size_t iv_len,
-                          unsigned char* msg,
+                          const unsigned char* msg,
                           size_t msg_len,
-                          unsigned char* aad,
+                          const unsigned char* aad,
                           size_t aad_len,
                           int party) {
-        if (iv_len != 12) {
-            error("invalid IV length!\n");
-        }
-        reverse(iv, iv + iv_len);
-        Integer J(96, iv, PUBLIC);
-        Integer ONE = Integer(32, 1, PUBLIC);
-        concat(J, &ONE, 1);
-
         // u = 128 * ceil(msg_len/128) - 8*msg_len
         size_t u = 128 * ((msg_len * 8 + 128 - 1) / 128) - msg_len * 8;
 
         size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
 
         Integer Z;
-        gctr(Z, J, 1 + ctr_len);
+        gctr(Z, 1 + ctr_len);
 
         H.bits.insert(H.bits.end(), Z.bits.end() - 128, Z.bits.end());
 
@@ -212,29 +218,19 @@ class AESGCM {
 
     bool dec_finished_msg(NetIO* io,
                           unsigned char* msg,
-                          unsigned char* ctxt,
+                          const unsigned char* ctxt,
                           size_t ctxt_len,
-                          unsigned char* tag,
-                          unsigned char* iv,
-                          size_t iv_len,
-                          unsigned char* aad,
+                          const unsigned char* tag,
+                          const unsigned char* aad,
                           size_t aad_len,
                           int party) {
-        if (iv_len != 12) {
-            error("invalid IV length!\n");
-        }
-        reverse(iv, iv + iv_len);
-        Integer J(96, iv, PUBLIC);
-        Integer ONE = Integer(32, 1, PUBLIC);
-        concat(J, &ONE, 1);
-
         // u = 128 * ceil(ctxt_len/128) - 8*ctxt_len
         size_t u = 128 * ((ctxt_len * 8 + 128 - 1) / 128) - ctxt_len * 8;
 
         size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
 
         Integer Z;
-        gctr(Z, J, 1 + ctr_len);
+        gctr(Z, 1 + ctr_len);
 
         H.bits.insert(H.bits.end(), Z.bits.end() - 128, Z.bits.end());
 
