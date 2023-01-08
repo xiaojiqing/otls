@@ -86,15 +86,15 @@ class AESGCM {
    public:
     Integer key;
     Integer H = Integer(128, 0, PUBLIC);
-    Integer counter;
+    Integer nonce;
     AESGCM(Integer& key, unsigned char* iv, size_t iv_len) : key(key) {
         if (iv_len != 12) {
             error("invalid IV length!\n");
         }
         reverse(iv, iv + iv_len);
-        counter = Integer(96, iv, PUBLIC);
+        nonce = Integer(96, iv, PUBLIC);
         Integer ONE = Integer(32, 1, PUBLIC);
-        concat(counter, &ONE, 1);
+        concat(nonce, &ONE, 1);
 
         computeH();
     }
@@ -127,12 +127,12 @@ class AESGCM {
     inline void gctr(Integer& res, size_t m) {
         Integer tmp(128, 0, PUBLIC);
         for (int i = 0; i < m; i++) {
-            Integer content = counter;
+            Integer content = nonce;
             concat(content, &key, 1);
             aes.compute(tmp.bits.data(), content.bits.data());
 
             concat(res, &tmp, 1);
-            counter = inc(counter, 32);
+            nonce = inc(nonce, 32);
         }
     }
 
@@ -163,7 +163,6 @@ class AESGCM {
         unsigned char* z = new unsigned char[msg_len];
         Z.reveal<unsigned char>((unsigned char*)z, BOB);
         reverse(z, z + msg_len);
-
         if (party == ALICE) {
             // v = 128 * ceil(8*aad_len/128) - aad_len*8
             size_t v = 128 * ((aad_len * 8 + 128 - 1) / 128) - aad_len * 8;
@@ -171,6 +170,7 @@ class AESGCM {
             if (msg_len != 0) {
                 io->recv_data(ctxt, msg_len);
             }
+
             size_t len = u / 8 + msg_len + v / 8 + aad_len + 16;
 
             unsigned char* x = new unsigned char[len];
@@ -198,7 +198,7 @@ class AESGCM {
             memcpy(tag, (unsigned char*)&t, 16);
             reverse(tag, tag + 16);
             io->send_data(tag, 16);
-            //io->flush();
+            // io->flush();
 
             delete[] x;
         } else if (party == BOB) {
@@ -207,8 +207,8 @@ class AESGCM {
             }
             if (msg_len != 0) {
                 io->send_data(ctxt, msg_len);
+                // io->flush();
             }
-            //io->flush();
             io->recv_data(tag, 16);
         }
 

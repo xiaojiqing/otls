@@ -174,8 +174,8 @@ int main(int argc, char** argv) {
     setup_backend(io, party);
 
     //aes_test();
-    //aes_gcm_enc_test(io, party);
-    aes_gcm_dec_test(io, party);
+    aes_gcm_enc_test(io, party);
+    //aes_gcm_dec_test(io, party);
     cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
     delete io;

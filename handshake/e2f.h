@@ -38,7 +38,9 @@ class E2F {
         BN_free(cp);
         BN_free(r);
         BN_free(r2);
-        delete ole;
+        if (ole != nullptr) {
+            delete ole;
+        }
     }
 
     inline void open(BIGNUM* value, int party) {

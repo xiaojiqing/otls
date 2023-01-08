@@ -235,7 +235,7 @@ void nopt_handshake_prf_circ_test() {
     //                 true);
     Integer ke_label_int(ke_label, PUBLIC);
     Integer ke_seed_int(ke_seed, PUBLIC);
-    prf.compute(hmac, sk, 320, ms, ke_label_int, ke_seed_int);
+    prf.compute(hmac, sk, 448, ms, ke_label_int, ke_seed_int);
 
     Integer ucfin;
     Integer cfin_label_int(cfin_label, PUBLIC);
