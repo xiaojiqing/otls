@@ -166,7 +166,7 @@ void handshake_prf_circ_test() {
 
     Integer sk;
     prf.init(hmac, ms);
-    prf.opt_compute(hmac, sk, 320, ms, ke_label, ke_label_len, ke_seed, ke_seed_len, true,
+    prf.opt_compute(hmac, sk, 448, ms, ke_label, ke_label_len, ke_seed, ke_seed_len, true,
                     true);
 
     Integer ucfin;

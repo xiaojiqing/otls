@@ -51,6 +51,8 @@ int main(int argc, char** argv) {
 
     size_t aad_len = sizeof(aad);
 
+    auto start = emp::clock_start();
+
     if (party == ALICE) {
         hs->compute_pado_VA(V, t, Ts);
     } else {
@@ -63,7 +65,6 @@ int main(int argc, char** argv) {
     hs->compute_pms_online(pms, V, party);
 
     hs->compute_master_and_expansion_keys(ms, key, pms, rc, 32, rs, 32, party);
-    //hs->compute_client_server_finished_msg(ufinc, ufins, ms, tau_c, 32, tau_s, 32);
 
     iv.bits.insert(iv.bits.begin(), key.bits.begin(), key.bits.begin() + 96 * 2);
     key_s.bits.insert(key_s.bits.begin(), key.bits.begin() + 2 * 96,
@@ -103,7 +104,9 @@ int main(int argc, char** argv) {
     bool res = hs->decrypt_and_check_server_finished_msg(aesgcm_s, ufins, ctxt, tag, aad,
                                                          aad_len, party);
     cout << res << endl;
-
+    cout << "time " << emp::time_from(start) << " us" << endl;
+    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
+    cout << "communication: "<< io->counter << " Bytes"<< endl;
     EC_POINT_free(V);
     EC_POINT_free(Tc);
     BN_free(t);
