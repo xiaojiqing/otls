@@ -8,7 +8,7 @@ NetIO * netio;
 void setup() {
 	usleep(100);
 	netio =  new emp::NetIO(party == emp::ALICE ? nullptr : "127.0.0.1", port, true);
-	setup_backend(netio, party,  1024);
+	setup_backend(netio, party);
 }
 void done() {
 	delete netio;

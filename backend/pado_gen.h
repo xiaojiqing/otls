@@ -62,15 +62,6 @@ class PADOGen: public PADOParty<IO> { public:
 
 	//reveal with check
 	void reveal(bool* b, int party, const block * label, int length) {
-		if (party == XOR) {
-			for (int i = 0; i < length; ++i) {
-				if(isOne(&label[i]) or isZero(&label[i]))
-					b[i] = false;
-				else 
-					b[i] = getLSB(label[i]);
-			}
-			return;
-		}
 		for (int i = 0; i < length; ++i) {
 			if(isOne(&label[i])) {
 				b[i] = true;

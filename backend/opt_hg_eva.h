@@ -3,40 +3,6 @@
 #include "emp-tool/emp-tool.h"
 #include "backend/bn_utils.h"
 using namespace emp;
-inline void garble_gate_eval_halfgates(block A, block B, 
-		block *out, const block *table, uint64_t idx, const AES_KEY *key) {
-	block HA, HB, W;
-	int sa, sb;
-	block tweak1, tweak2;
-
-	sa = getLSB(A);
-	sb = getLSB(B);
-
-	tweak1 = makeBlock(2 * idx, (long) 0);
-	tweak2 = makeBlock(2 * idx + 1, (long) 0);
-
-	{
-		block keys[2];
-		block masks[2];
-
-		keys[0] = sigma(A) ^ tweak1;
-		keys[1] = sigma(B) ^ tweak2;
-		masks[0] = keys[0];
-		masks[1] = keys[1];
-		AES_ecb_encrypt_blks(keys, 2, key);
-		HA = keys[0] ^ masks[0];
-		HB = keys[1] ^ masks[1];
-	}
-
-	W = HA ^ HB;
-	if (sa)
-		W = W ^ table[0];
-	if (sb) {
-		W = W ^ table[1];
-		W = W ^ A;
-	}
-	*out = W;
-}
 
 template<typename T>
 class OptHalfGateEva:public CircuitExecution{ public:

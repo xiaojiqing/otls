@@ -54,22 +54,6 @@ void test_bit() {
 							error("test bit error!");
 						}
 					}
-					{
-						Bit b1(b[i], p[j]);
-						Bit b2(b[k], p[l]);
-						bool res = (b1^b2).reveal(XOR);
-						if(party == ALICE) {
-							io->send_data(&res, 1);
-						} else {
-							bool tmp;io->recv_data(&tmp, 1);
-							res = res != tmp;
-							if(res != (b[i] xor b[k])) {
-								cout <<"XOR"<<i<<" "<<j<<" "<<k<<" "<<l<< " " <<res<<endl;
-								error("test bit error!");
-							}
-
-						}
-					}
 				}
 	io->flush();
 	cout <<"success!"<<endl;

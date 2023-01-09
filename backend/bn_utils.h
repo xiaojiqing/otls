@@ -32,6 +32,48 @@ inline void recv_bn(NetIO* io, BIGNUM*bn, Hash * hash = nullptr) {
 	BN_bin2bn(arr, length, bn);
 }
 
+inline void garble_gate_garble_halfgates(block LA0, block A1, block LB0, block B1, block *out0, block *out1, block delta, block *table, uint64_t idx, const AES_KEY *key) {
+	long pa = getLSB(LA0);
+	long pb = getLSB(LB0);
+	block tweak1, tweak2;
+	block HLA0, HA1, HLB0, HB1;
+	block tmp, W0;
+
+	tweak1 = makeBlock(2 * idx, (uint64_t) 0);
+	tweak2 = makeBlock(2 * idx + 1, (uint64_t) 0);
+
+	{
+		block masks[4], keys[4];
+
+		keys[0] = sigma(LA0) ^ tweak1;
+		keys[1] = sigma(A1) ^ tweak1;
+		keys[2] = sigma(LB0) ^ tweak2;
+		keys[3] = sigma(B1) ^ tweak2;
+		memcpy(masks, keys, sizeof keys);
+		AES_ecb_encrypt_blks(keys, 4, key);
+		HLA0 = keys[0] ^ masks[0];
+		HA1 = keys[1] ^ masks[1];
+		HLB0 = keys[2] ^ masks[2];
+		HB1 = keys[3] ^ masks[3];
+	}
+
+	table[0] = HLA0 ^ HA1;
+	if (pb)
+		table[0] = table[0] ^ delta;
+	W0 = HLA0;
+	if (pa)
+		W0 = W0 ^ table[0];
+	tmp = HLB0 ^ HB1;
+	table[1] = tmp ^ LA0;
+	W0 = W0 ^ HLB0;
+	if (pb)
+		W0 = W0 ^ tmp;
+
+	*out0 = W0;
+	*out1 = *out0 ^ delta;
+}
+
+
 inline bool isZero(const block * b) {
 	return _mm_testz_si128(*b,*b) > 0;
 }
@@ -40,4 +82,41 @@ inline bool isOne(const block * b) {
 	__m128i neq = _mm_xor_si128(*b, all_one_block);
 	return _mm_testz_si128(neq, neq) > 0;
 }
+
+inline void garble_gate_eval_halfgates(block A, block B, 
+		block *out, const block *table, uint64_t idx, const AES_KEY *key) {
+	block HA, HB, W;
+	int sa, sb;
+	block tweak1, tweak2;
+
+	sa = getLSB(A);
+	sb = getLSB(B);
+
+	tweak1 = makeBlock(2 * idx, (long) 0);
+	tweak2 = makeBlock(2 * idx + 1, (long) 0);
+
+	{
+		block keys[2];
+		block masks[2];
+
+		keys[0] = sigma(A) ^ tweak1;
+		keys[1] = sigma(B) ^ tweak2;
+		masks[0] = keys[0];
+		masks[1] = keys[1];
+		AES_ecb_encrypt_blks(keys, 2, key);
+		HA = keys[0] ^ masks[0];
+		HB = keys[1] ^ masks[1];
+	}
+
+	W = HA ^ HB;
+	if (sa)
+		W = W ^ table[0];
+	if (sb) {
+		W = W ^ table[1];
+		W = W ^ A;
+	}
+	*out = W;
+}
+
+
 #endif// PADO_BN_UTILS_H__
