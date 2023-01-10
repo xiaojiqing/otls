@@ -9,6 +9,12 @@ static string circuit_file_location =
   macro_xstr(EMP_CIRCUIT_PATH) + string("bristol_fashion/");
 static BristolFashion aes = BristolFashion((circuit_file_location + "aes_128.txt").c_str());
 
+static string aes_ks_file = "cipher/aes128_ks.txt";
+static BristolFormat aes_ks = BristolFormat(aes_ks_file.c_str());
+
+static string aes_enc_file = "cipher/aes128_with_ks.txt";
+static BristolFormat aes_enc_ks = BristolFormat(aes_enc_file.c_str());
+
 inline block ghash(block h, block* x, size_t m) {
     block y = zero_block;
     for (int i = 0; i < m; i++) {
@@ -25,15 +31,27 @@ inline Integer computeAES(const Integer& key, const Integer& msg) {
     return o;
 }
 
+inline Integer computeKS(Integer& key) {
+    Integer o(1408, 0, PUBLIC);
+    aes_ks.compute(o.bits.data(), key.bits.data(), nullptr);
+    return o;
+}
+
+inline Integer computeAES_KS(Integer& key, Integer& msg) {
+    Integer o(128, 0, PUBLIC);
+    aes_enc_ks.compute(o.bits.data(), key.bits.data(), msg.bits.data());
+    reverse(o.bits.begin(), o.bits.end());
+    return o;
+}
 template <typename IO>
 class AESGCM {
    public:
-    Integer key;
-    Integer H = Integer(128, 0, PUBLIC);
+    Integer H;
+    Integer expanded_key;
     block h = zero_block;
     Integer nonce;
     VOPE<IO>* vope = nullptr;
-    AESGCM(Integer& key, unsigned char* iv, size_t iv_len) : key(key) {
+    AESGCM(Integer& key, unsigned char* iv, size_t iv_len) {
         if (iv_len != 12) {
             error("invalid IV length!\n");
         }
@@ -42,6 +60,7 @@ class AESGCM {
         Integer ONE = Integer(32, 1, PUBLIC);
         concat(nonce, &ONE, 1);
 
+        expanded_key = computeKS(key);
         computeH();
     }
     ~AESGCM() {
@@ -51,9 +70,8 @@ class AESGCM {
 
     inline void computeH() {
         Integer in(128, 0, PUBLIC);
-        // concat(in, &key, 1);
-        // aes.compute(H.bits.data(), in.bits.data());
-        H = computeAES(key, in);
+        //H = computeAES(key, in);
+        H = computeAES_KS(expanded_key, in);
     }
 
     inline void InitVOPE(IO* io, COT<IO>* ot) { vope = new VOPE<IO>(io, ot); }
@@ -75,9 +93,8 @@ class AESGCM {
         Integer tmp(128, 0, PUBLIC);
         for (int i = 0; i < m; i++) {
             Integer content = nonce;
-            // concat(content, &key, 1);
-            // aes.compute(tmp.bits.data(), content.bits.data());
-            tmp = computeAES(key, content);
+            //tmp = computeAES(key, content);
+            tmp = computeAES_KS(expanded_key, content);
 
             concat(res, &tmp, 1);
             nonce = inc(nonce, 32);

@@ -320,6 +320,7 @@ void aesgcm_dec_record_msg_test(NetIO* io, COT<NetIO>* ot, int party) {
         cout << endl;
     }
 }
+
 int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
@@ -331,8 +332,8 @@ int main(int argc, char** argv) {
     //aes_gcm_enc_test(io, party);
     //aes_gcm_dec_test(io, party);
     //aes_gcm_circ_test(io, party);
-    //aesgcm_enc_record_msg_test(io, cot, party);
-    aesgcm_dec_record_msg_test(io, cot, party);
+    aesgcm_enc_record_msg_test(io, cot, party);
+    //aesgcm_dec_record_msg_test(io, cot, party);
 
     cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
