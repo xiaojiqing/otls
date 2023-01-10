@@ -172,7 +172,7 @@ class HandShake {
         ufin_int.reveal<unsigned char>((unsigned char*)ufin, BOB);
     }
 
-    inline void encrypt_client_finished_msg(AESGCM& aesgcm_c,
+    inline void encrypt_client_finished_msg(AESGCM<IO>& aesgcm_c,
                                             unsigned char* ctxt,
                                             unsigned char* tag,
                                             const unsigned char* ufinc,
@@ -184,7 +184,7 @@ class HandShake {
     }
 
     // The ufins string is computed by pado and client, need to check the equality with the decrypted string
-    inline bool decrypt_and_check_server_finished_msg(AESGCM& aesgcm_s,
+    inline bool decrypt_and_check_server_finished_msg(AESGCM<IO>& aesgcm_s,
                                                       const unsigned char* ufins,
                                                       const unsigned char* ctxt,
                                                       const unsigned char* tag,

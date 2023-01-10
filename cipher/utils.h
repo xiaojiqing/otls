@@ -11,9 +11,13 @@ using namespace emp;
 using std::string;
 using std::vector;
 
-inline Integer rrot(const Integer& rhs, int sht) { return (rhs >> sht) ^ (rhs << (rhs.size() - sht)); }
+inline Integer rrot(const Integer& rhs, int sht) {
+    return (rhs >> sht) ^ (rhs << (rhs.size() - sht));
+}
 
-inline uint32_t rrot(const uint32_t& rhs, int sht) { return (rhs >> sht) | (rhs << (32 - sht)); }
+inline uint32_t rrot(const uint32_t& rhs, int sht) {
+    return (rhs >> sht) | (rhs << (32 - sht));
+}
 
 inline Integer lrot(const Integer& rhs, int sht) {
     Integer tmp(rhs);
@@ -23,23 +27,22 @@ inline Integer lrot(const Integer& rhs, int sht) {
 inline Integer str_to_int(string str, int party) {
     uint64_t mlen = str.length() * 8;
     std::reverse(str.begin(), str.end());
-    	
-	uint8_t * tmp = new uint8_t[str.length()];
+
+    uint8_t* tmp = new uint8_t[str.length()];
     for (uint64_t i = 0; i < str.length(); i++) {
-			tmp[i] = (int)str[i];
+        tmp[i] = (int)str[i];
     }
-	 Integer res(mlen, tmp, party); // note that this line could increase roundtrip
-	 delete[] tmp;
-	 return res;
+    Integer res(mlen, tmp, party); // note that this line could increase roundtrip
+    delete[] tmp;
+    return res;
 }
 
-inline void char_to_uint32(uint32_t* res, const char* in, size_t len){
-    for(int i = 0; i < len/4; i++){
-
+inline void char_to_uint32(uint32_t* res, const char* in, size_t len) {
+    for (int i = 0; i < len / 4; i++) {
     }
 }
 
-  /*inline vector<Bit> str_to_bits(string str){
+/*inline vector<Bit> str_to_bits(string str){
 	vector<Bit> bits;
 	bool b;
 	for(uint64_t i = 0; i < str.length(); i++){
@@ -52,7 +55,7 @@ inline void char_to_uint32(uint32_t* res, const char* in, size_t len){
 }
 */
 
-  inline string int_to_hex(vector<uint32_t> vint) {
+inline string int_to_hex(vector<uint32_t> vint) {
     string str;
     uint tmp_int;
     char* buffer = new char[3];
@@ -124,6 +127,70 @@ inline void concat(Integer& res, const Integer* in, size_t len) {
 
 inline void move_concat(Integer& res, const Integer* in, size_t len) {
     for (int i = 0; i < len; i++)
-        res.bits.insert(res.bits.begin(), make_move_iterator(in[i].bits.begin()), make_move_iterator(in[i].bits.end()));
+        res.bits.insert(res.bits.begin(), make_move_iterator(in[i].bits.begin()),
+                        make_move_iterator(in[i].bits.end()));
+}
+
+inline block mulBlock(block a, block b) {
+    __m128i tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9;
+    tmp3 = _mm_clmulepi64_si128(a, b, 0x00);
+    tmp4 = _mm_clmulepi64_si128(a, b, 0x10);
+    tmp5 = _mm_clmulepi64_si128(a, b, 0x01);
+    tmp6 = _mm_clmulepi64_si128(a, b, 0x11);
+
+    tmp4 = _mm_xor_si128(tmp4, tmp5);
+    tmp5 = _mm_slli_si128(tmp4, 8);
+    tmp4 = _mm_srli_si128(tmp4, 8);
+    tmp3 = _mm_xor_si128(tmp3, tmp5);
+    tmp6 = _mm_xor_si128(tmp6, tmp4);
+
+    tmp7 = _mm_srli_epi32(tmp3, 31);
+    tmp8 = _mm_srli_epi32(tmp6, 31);
+    tmp3 = _mm_slli_epi32(tmp3, 1);
+    tmp6 = _mm_slli_epi32(tmp6, 1);
+
+    tmp9 = _mm_srli_si128(tmp7, 12);
+    tmp8 = _mm_slli_si128(tmp8, 4);
+    tmp7 = _mm_slli_si128(tmp7, 4);
+    tmp3 = _mm_or_si128(tmp3, tmp7);
+    tmp6 = _mm_or_si128(tmp6, tmp8);
+    tmp6 = _mm_or_si128(tmp6, tmp9);
+
+    tmp7 = _mm_slli_epi32(tmp3, 31);
+    tmp8 = _mm_slli_epi32(tmp3, 30);
+    tmp9 = _mm_slli_epi32(tmp3, 25);
+    tmp7 = _mm_xor_si128(tmp7, tmp8);
+    tmp7 = _mm_xor_si128(tmp7, tmp9);
+    tmp8 = _mm_srli_si128(tmp7, 4);
+    tmp7 = _mm_slli_si128(tmp7, 12);
+    tmp3 = _mm_xor_si128(tmp3, tmp7);
+
+    tmp2 = _mm_srli_epi32(tmp3, 1);
+    tmp4 = _mm_srli_epi32(tmp3, 2);
+    tmp5 = _mm_srli_epi32(tmp3, 7);
+    tmp2 = _mm_xor_si128(tmp2, tmp4);
+    tmp2 = _mm_xor_si128(tmp2, tmp5);
+    tmp2 = _mm_xor_si128(tmp2, tmp8);
+    tmp3 = _mm_xor_si128(tmp3, tmp2);
+    return _mm_xor_si128(tmp6, tmp3);
+}
+
+inline block powBlock(block a, size_t len) {
+    size_t leading_zeros = 0;
+    for (int i = sizeof(size_t) * 8 - 1; i >= 0; i--) {
+        if ((len >> i) & 1)
+            break;
+        leading_zeros++;
+    }
+    block h = a;
+    block res = (len & 1) ? a : set_bit(zero_block, 127);
+
+    for (int i = 1; i < sizeof(size_t) * 8 - leading_zeros; i++) {
+        h = mulBlock(h, h);
+        if ((len >> i) & 1)
+            res = mulBlock(h, res);
+    }
+
+    return res;
 }
 #endif

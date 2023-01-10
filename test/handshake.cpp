@@ -77,8 +77,8 @@ int main(int argc, char** argv) {
     hs->compute_finished_msg(ufinc, ms, client_finished_label, client_finished_label_length,
                              tau_c, 32);
 
-    AESGCM aesgcm_c(key_c, iv_oct + 12, 12);
-    AESGCM aesgcm_s(key_s, iv_oct, 12);
+    AESGCM<NetIO> aesgcm_c(key_c, iv_oct + 12, 12);
+    AESGCM<NetIO> aesgcm_s(key_s, iv_oct, 12);
 
     unsigned char* ctxt = new unsigned char[finished_msg_bit_length / 8];
     unsigned char* tag = new unsigned char[16];

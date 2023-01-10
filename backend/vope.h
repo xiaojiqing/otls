@@ -2,7 +2,7 @@
 #define PADO_VOPE_H
 #include "emp-ot/emp-ot.h"
 #include "backend/bn_utils.h"
-#include "cipher/aesgcm.h"
+#include "cipher/utils.h"
 #include <iostream>
 template<typename IO>
 class VOPE { public:
