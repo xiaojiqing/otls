@@ -5,44 +5,6 @@
 #include "utils.h"
 using namespace emp;
 
-static string circuit_file_location =
-  macro_xstr(EMP_CIRCUIT_PATH) + string("bristol_fashion/");
-static BristolFashion aes = BristolFashion((circuit_file_location + "aes_128.txt").c_str());
-
-static string aes_ks_file = "cipher/aes128_ks.txt";
-static BristolFormat aes_ks = BristolFormat(aes_ks_file.c_str());
-
-static string aes_enc_file = "cipher/aes128_with_ks.txt";
-static BristolFormat aes_enc_ks = BristolFormat(aes_enc_file.c_str());
-
-inline block ghash(block h, block* x, size_t m) {
-    block y = zero_block;
-    for (int i = 0; i < m; i++) {
-        y = mulBlock((y ^ x[i]), h);
-    }
-    return y;
-}
-
-inline Integer computeAES(const Integer& key, const Integer& msg) {
-    Integer o = Integer(128, 0, PUBLIC);
-    Integer in(msg);
-    concat(in, &key, 1);
-    aes.compute(o.bits.data(), in.bits.data());
-    return o;
-}
-
-inline Integer computeKS(Integer& key) {
-    Integer o(1408, 0, PUBLIC);
-    aes_ks.compute(o.bits.data(), key.bits.data(), nullptr);
-    return o;
-}
-
-inline Integer computeAES_KS(Integer& key, Integer& msg) {
-    Integer o(128, 0, PUBLIC);
-    aes_enc_ks.compute(o.bits.data(), key.bits.data(), msg.bits.data());
-    reverse(o.bits.begin(), o.bits.end());
-    return o;
-}
 template <typename IO>
 class AESGCM {
    public:

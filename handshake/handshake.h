@@ -2,7 +2,8 @@
 #define _HAND_SHAKE_H_
 #include "emp-tool/emp-tool.h"
 #include "cipher/hmac_sha256.h"
-#include "cipher/aesgcm.h"
+#include "cipher/aead.h"
+//#include "cipher/aesgcm.h"
 #include "cipher/prf.h"
 #include "add.h"
 #include "e2f.h"
@@ -172,19 +173,19 @@ class HandShake {
         ufin_int.reveal<unsigned char>((unsigned char*)ufin, BOB);
     }
 
-    inline void encrypt_client_finished_msg(AESGCM<IO>& aesgcm_c,
+    inline void encrypt_client_finished_msg(AEAD<IO>& aead_c,
                                             unsigned char* ctxt,
                                             unsigned char* tag,
                                             const unsigned char* ufinc,
                                             const unsigned char* aad,
                                             size_t aad_len,
                                             int party) {
-        aesgcm_c.enc_finished_msg(io, ctxt, tag, ufinc, finished_msg_bit_length / 8, aad,
+        aead_c.enc_finished_msg(io, ctxt, tag, ufinc, finished_msg_bit_length / 8, aad,
                                   aad_len, party);
     }
 
     // The ufins string is computed by pado and client, need to check the equality with the decrypted string
-    inline bool decrypt_and_check_server_finished_msg(AESGCM<IO>& aesgcm_s,
+    inline bool decrypt_and_check_server_finished_msg(AEAD<IO>& aead_s,
                                                       const unsigned char* ufins,
                                                       const unsigned char* ctxt,
                                                       const unsigned char* tag,
@@ -192,7 +193,7 @@ class HandShake {
                                                       size_t aad_len,
                                                       int party) {
         unsigned char* msg = new unsigned char[finished_msg_bit_length / 8];
-        bool res1 = aesgcm_s.dec_finished_msg(io, msg, ctxt, finished_msg_bit_length / 8, tag,
+        bool res1 = aead_s.dec_finished_msg(io, msg, ctxt, finished_msg_bit_length / 8, tag,
                                               aad, aad_len, party);
 
         bool res2 = (memcmp(msg, ufins, finished_msg_bit_length / 8) == 0);
