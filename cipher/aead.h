@@ -147,7 +147,7 @@ class AEAD {
             for (int i = 0; i < msg_len; i++) {
                 ctxt[i] = msg[i] ^ z[i];
             }
-            // Do not need to send this ctxt, if only ALICE get the ciphertext!.
+            // Do not need to send this ctxt, if only ALICE gets the ciphertext!.
             io->send_data(ctxt, msg_len);
         } else {
             io->recv_data(ctxt, msg_len);
@@ -183,12 +183,14 @@ class AEAD {
         if (party == BOB) {
             block out_recv = zero_block;
             io->send_block(&out, 1);
+            // Do not need to send this ctxt, if only ALICE gets the tag!.
             io->recv_block(&out_recv, 1);
 
             out ^= out_recv;
         } else {
             block out_recv = zero_block;
             io->recv_block(&out_recv, 1);
+            // Do not need to send this ctxt, if only ALICE gets the tag!.
             io->send_block(&out, 1);
 
             out ^= out_recv;

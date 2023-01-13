@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
 
     auto start = emp::clock_start();
 
-    if (party == ALICE) {
+    if (party == BOB) {
         hs->compute_pado_VA(V, t, Ts);
     } else {
         hs->compute_client_VB(Tc, V, t, Ts);
