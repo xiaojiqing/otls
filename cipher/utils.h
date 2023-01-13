@@ -15,10 +15,10 @@ static string circuit_file_location =
   macro_xstr(EMP_CIRCUIT_PATH) + string("bristol_fashion/");
 static BristolFashion aes = BristolFashion((circuit_file_location + "aes_128.txt").c_str());
 
-static string aes_ks_file = "cipher/aes128_ks.txt";
+static string aes_ks_file = "cipher/circuit_files/aes128_ks.txt";
 static BristolFormat aes_ks = BristolFormat(aes_ks_file.c_str());
 
-static string aes_enc_file = "cipher/aes128_with_ks.txt";
+static string aes_enc_file = "cipher/circuit_files/aes128_with_ks.txt";
 static BristolFormat aes_enc_ks = BristolFormat(aes_enc_file.c_str());
 
 inline Integer rrot(const Integer& rhs, int sht) {
