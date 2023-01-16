@@ -170,7 +170,7 @@ class HandShake {
         Integer ufin_int;
         prf.opt_compute(hmac, ufin_int, finished_msg_bit_length, ms, label, label_len, tau,
                         tau_len, true, true);
-        ufin_int.reveal<unsigned char>((unsigned char*)ufin, BOB);
+        ufin_int.reveal<unsigned char>((unsigned char*)ufin, PUBLIC);
     }
 
     inline void encrypt_client_finished_msg(AEAD<IO>& aead_c,
