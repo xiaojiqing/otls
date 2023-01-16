@@ -11,17 +11,15 @@ const int threads = 1;
 int main(int argc, char** argv) {
     parse_party_and_port(argv, &party, &port);
 
-    NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; ++i)
-        ios[i] = new BoolIO<NetIO>(io, party == ALICE);
+        ios[i] = new BoolIO<NetIO>(new NetIO(party == ALICE ? nullptr : "127.0.0.1", port), party == ALICE);
 
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     auto start0 = emp::clock_start();
     setup_zk_bool<BoolIO<NetIO>>(ios, threads, party);
     cout << "setup time: " << emp::time_from(start0) << " us" << endl;
-    IZK<NetIO>* izk = new IZK<NetIO>(io, group);
+    IZK<NetIO>* izk = new IZK<NetIO>(nullptr, group);
 
     Integer ms, key, key_c, key_s, iv;
 
@@ -65,7 +63,6 @@ int main(int argc, char** argv) {
 
     izk->prove_compute_finished_msg(ufinc, ms, client_finished_label,
                                     client_finished_label_length, tau_c, 32);
-
     AEAD_IZK aead_c(key_c, iv_oct + 12, 12);
     AEAD_IZK aead_s(key_s, iv_oct, 12);
 
@@ -76,7 +73,8 @@ int main(int argc, char** argv) {
     // size_t q_length = 2 * 1024 * 8;
     // size_t r_length = 2 * 1024 * 8;
     cout << "handshake AND gates: " << CircuitExecution::circ_exec->num_and() << endl;
-    cout << "handshake communication: " << io->counter << " Bytes" << endl;
+	ios[0]->flush();
+    cout << "handshake communication: " << ios[0]->counter << " Bytes" << endl;
     cout << "handshake time: " << emp::time_from(start) << " us" << endl;
 
     // auto start1 = emp::clock_start();

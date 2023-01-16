@@ -41,7 +41,7 @@ class IZK {
                                                 const unsigned char* rs,
                                                 size_t rs_len,
                                                 int party) {
-        size_t len = BN_num_bytes(pms_a);
+        size_t len = 32;//BN_num_bytes(pms_a);
         assert(len == BN_num_bytes(pms_b));
 
         unsigned char* bufa = new unsigned char[len];
