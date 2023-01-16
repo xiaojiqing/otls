@@ -1,7 +1,7 @@
 #Testing macro
 macro (add_test_executable_with_lib _name libs)
 	add_executable(test_${_name} "${_name}.cpp")
-	target_link_libraries(test_${_name} ${EMP-OT_LIBRARIES})
+	target_link_libraries(test_${_name} ${EMP-OT_LIBRARIES} ${EMP-ZK_LIBRARIES})
 endmacro()
 
 macro (add_test_case _name)
@@ -34,3 +34,4 @@ add_test_case_with_run(e2f)
 add_test_case_with_run(add)
 add_test_case_with_run(handshake)
 add_test_case_with_run(aead)
+add_test_case_with_run(izk)
