@@ -56,7 +56,7 @@ class HandShake {
     inline void compute_pado_VA(EC_POINT* Va, BIGNUM* t, const EC_POINT* Ts) {
         // BN_rand(t, BN_num_bytes(q) * 8, 0, 0);
         // BN_mod(t, t, q, ctx);
-        BN_rand_range(t, q);
+        BN_rand_range(t, EC_GROUP_get0_order(group));
 
         EC_POINT* Ta = EC_POINT_new(group);
         if (!EC_POINT_mul(group, Ta, t, NULL, NULL, ctx))
@@ -80,7 +80,7 @@ class HandShake {
     inline void compute_client_VB(EC_POINT* Tc, EC_POINT* Vb, BIGNUM* t, const EC_POINT* Ts) {
         // BN_rand(t, BN_num_bytes(q) * 8, 0, 0);
         // BN_mod(t, t, q, ctx);
-        BN_rand_range(t, q);
+        BN_rand_range(t, EC_GROUP_get0_order(group));
 
         EC_POINT* Tb = EC_POINT_new(group);
         if (!EC_POINT_mul(group, Tb, t, NULL, NULL, ctx))
@@ -181,7 +181,7 @@ class HandShake {
                                             size_t aad_len,
                                             int party) {
         aead_c.enc_finished_msg(io, ctxt, tag, ufinc, finished_msg_bit_length / 8, aad,
-                                  aad_len, party);
+                                aad_len, party);
     }
 
     // The ufins string is computed by pado and client, need to check the equality with the decrypted string
@@ -194,7 +194,7 @@ class HandShake {
                                                       int party) {
         unsigned char* msg = new unsigned char[finished_msg_bit_length / 8];
         bool res1 = aead_s.dec_finished_msg(io, msg, ctxt, finished_msg_bit_length / 8, tag,
-                                              aad, aad_len, party);
+                                            aad, aad_len, party);
 
         bool res2 = (memcmp(msg, ufins, finished_msg_bit_length / 8) == 0);
         delete[] msg;
