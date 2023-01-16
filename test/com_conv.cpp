@@ -85,6 +85,7 @@ int main(int argc, char** argv) {
     } else {
         PRG prg;
         prg.random_bool(val, array_len);
+		//cot->recv_cot(raw.data(), val, array_len);
         ios[0]->send_bool(val, array_len);
 
         prg.random_block(raw.data(), array_len);
@@ -96,7 +97,7 @@ int main(int argc, char** argv) {
             // cout << raw[i] << endl;
         }
         ios[0]->send_block(raw.data(), array_len);
-		
+
         auto start = emp::clock_start();
         bool res = conv.compute_com_recv(coms, rnds, raw, pc);
         if (res) {
@@ -106,7 +107,6 @@ int main(int argc, char** argv) {
         }
         cout << "BOB time: " << emp::time_from(start) << " us" << endl;
     }
-
     // BIGNUM* aDelta = BN_new();
 
     // if (party == ALICE) {
