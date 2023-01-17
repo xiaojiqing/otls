@@ -280,9 +280,9 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
 
-    NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+
+    NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
 
     // GC
     hs_query_resp_gc(io, group, party);
@@ -299,6 +299,10 @@ int main(int argc, char** argv) {
         delete ios[i]->io;
         delete ios[i];
     }
+
+    // vector<block> out(QUERY_BYTE_LEN * 8 + RESPONSE_BYTE_LEN * 8);
+    // for (int i = 0; i < out.size(); i++)
+    //     out[i] = zero_block;
 
     NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
 
