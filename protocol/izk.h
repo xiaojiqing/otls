@@ -14,14 +14,13 @@ using namespace std;
 template <typename IO>
 class IZK {
    public:
-    IO* io;
     HMAC_SHA256 hmac;
     PRF prf;
     BIGNUM* q;
     BN_CTX* ctx;
     EC_GROUP* group = nullptr;
 
-    IZK(IO* io, EC_GROUP* group) : io(io) {
+    IZK(EC_GROUP* group) {
         ctx = BN_CTX_new();
         this->group = group;
         q = BN_new();
@@ -41,13 +40,15 @@ class IZK {
                                                 const unsigned char* rs,
                                                 size_t rs_len,
                                                 int party) {
-        size_t len = 32;//BN_num_bytes(pms_a);
+        size_t len = 32; //BN_num_bytes(pms_a);
         assert(len == BN_num_bytes(pms_b));
 
         unsigned char* bufa = new unsigned char[len];
         unsigned char* bufb = new unsigned char[len];
-        BN_bn2bin(pms_a, bufa);
-        reverse(bufa, bufa + len);
+        // BN_bn2bin(pms_a, bufa);
+        // reverse(bufa, bufa + len);
+
+        memset(bufa, 11, len);
 
         BN_bn2bin(pms_b, bufb);
         reverse(bufb, bufb + len);
@@ -80,11 +81,11 @@ class IZK {
     }
 
     inline void prove_compute_finished_msg(unsigned char* ufin,
-                                     const Integer& ms,
-                                     const unsigned char* label,
-                                     size_t label_len,
-                                     const unsigned char* tau,
-                                     size_t tau_len) {
+                                           const Integer& ms,
+                                           const unsigned char* label,
+                                           size_t label_len,
+                                           const unsigned char* tau,
+                                           size_t tau_len) {
         Integer ufin_int;
         prf.opt_compute(hmac, ufin_int, finished_msg_bit_length, ms, label, label_len, tau,
                         tau_len, true, true);
@@ -92,14 +93,22 @@ class IZK {
     }
 
     inline void prove_encrypt_client_finished_msg(AEAD_IZK& aead_izk_c,
-                                            Integer& ctxt,
-                                            size_t msg_len) {
+                                                  Integer& ctxt,
+                                                  size_t msg_len) {
         aead_izk_c.enc_and_dec_msg(ctxt, msg_len);
     }
 
     inline void prove_decrypt_server_finished_msg(AEAD_IZK& aead_izk_s,
-                                            Integer& msg,
-                                            size_t ctxt_len) {
+                                                  Integer& msg,
+                                                  size_t ctxt_len) {
+        aead_izk_s.enc_and_dec_msg(msg, ctxt_len);
+    }
+
+    inline void prove_encrypt_record_msg(AEAD_IZK& aead_izk_c, Integer& ctxt, size_t msg_len) {
+        aead_izk_c.enc_and_dec_msg(ctxt, msg_len);
+    }
+
+    inline void prove_decrypt_record_msg(AEAD_IZK& aead_izk_s, Integer& msg, size_t ctxt_len) {
         aead_izk_s.enc_and_dec_msg(msg, ctxt_len);
     }
 };

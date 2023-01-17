@@ -148,9 +148,9 @@ class AEAD {
                 ctxt[i] = msg[i] ^ z[i];
             }
             // Do not need to send this ctxt, if only ALICE gets the ciphertext!.
-            io->send_data(ctxt, msg_len);
+            // io->send_data(ctxt, msg_len);
         } else {
-            io->recv_data(ctxt, msg_len);
+            // io->recv_data(ctxt, msg_len);
         }
 
         size_t v = 128 * ((aad_len * 8 + 128 - 1) / 128) - aad_len * 8;
@@ -184,14 +184,14 @@ class AEAD {
             block out_recv = zero_block;
             io->send_block(&out, 1);
             // Do not need to send this ctxt, if only ALICE gets the tag!.
-            io->recv_block(&out_recv, 1);
+            // io->recv_block(&out_recv, 1);
 
             out ^= out_recv;
         } else {
             block out_recv = zero_block;
             io->recv_block(&out_recv, 1);
             // Do not need to send this ctxt, if only ALICE gets the tag!.
-            io->send_block(&out, 1);
+            // io->send_block(&out, 1);
 
             out ^= out_recv;
         }

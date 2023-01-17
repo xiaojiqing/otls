@@ -282,9 +282,9 @@ int main(int argc, char** argv) {
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
 
-    aead_enc_fin_test(io, cot, party);
+    //aead_enc_fin_test(io, cot, party);
     //aead_dec_fin_test(io, cot, party);
-    //aead_enc_record_msg_test(io, cot, party);
+    aead_enc_record_msg_test(io, cot, party);
     //aead_dec_record_msg(io, cot, party);
     //convert(party);
     cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
