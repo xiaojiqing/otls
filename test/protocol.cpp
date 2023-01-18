@@ -247,8 +247,10 @@ void com_conv(NetIO* io, EC_GROUP* group, vector<block>& input, int party) {
     PedersenComm pc(h, group);
     BIGNUM* q = BN_new();
     BN_copy(q, EC_GROUP_get0_order(group));
-
+    if(party == BOB)
+		cot->Delta=zero_block;
     ComConv<NetIO> conv(io, cot, q);
+	
 
     vector<EC_POINT*> coms;
     vector<BIGNUM*> rnds;
