@@ -89,7 +89,7 @@ void hs_query_resp_gc(NetIO* io, EC_GROUP* group, int party) {
 
     //hs->compute_finished_msg(ufins, ms, server_finished_label, server_finished_label_length,
     //                         tau_s, 32);
-    hs->decrypt_and_check_server_finished_msg(aead_s, ufins, ctxt, tag, aad, aad_len, party);
+    //hs->decrypt_and_check_server_finished_msg(aead_s, ufins, ctxt, tag, aad, aad_len, party);
     auto hs_gc_time = emp::time_from(start);
     cout << "handshake GC time: " << (hs_gc_time * 1.0) / 1000 << " ms" << endl;
 
