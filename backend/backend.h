@@ -13,47 +13,45 @@
 #include "backend/online_pado_eva.h"
 using namespace emp;
 
-template<typename IO>
+template <typename IO>
 inline PADOParty<IO>* setup_online_backend(IO* io, int party) {
-	if(party == ALICE) {
-		OnlineHalfGateGen<IO> * t = new OnlineHalfGateGen<IO>();
-		CircuitExecution::circ_exec = t;
-		ProtocolExecution::prot_exec = new OnlinePADOGen<IO>(io, t);
-	} else {
-		OnlineHalfGateEva<IO> * t = new OnlineHalfGateEva<IO>();
-		CircuitExecution::circ_exec = t;
-		ProtocolExecution::prot_exec = new OnlinePADOEva<IO>(io, t);
-	}
-	return (PADOParty<IO>*)ProtocolExecution::prot_exec;
+    if (party == ALICE) {
+        OnlineHalfGateGen<IO>* t = new OnlineHalfGateGen<IO>();
+        CircuitExecution::circ_exec = t;
+        ProtocolExecution::prot_exec = new OnlinePADOGen<IO>(io, t);
+    } else {
+        OnlineHalfGateEva<IO>* t = new OnlineHalfGateEva<IO>();
+        CircuitExecution::circ_exec = t;
+        ProtocolExecution::prot_exec = new OnlinePADOEva<IO>(io, t);
+    }
+    return (PADOParty<IO>*)ProtocolExecution::prot_exec;
 }
 
-template<typename IO>
+template <typename IO>
 inline PADOParty<IO>* setup_backend(IO* io, int party) {
-	if(party == ALICE) {
-		OptHalfGateGen<IO> * t = new OptHalfGateGen<IO>(io);
-		CircuitExecution::circ_exec = t;
-		ProtocolExecution::prot_exec = new PADOGen<IO>(io, t);
-	} else {
-		OptHalfGateEva<IO> * t = new OptHalfGateEva<IO>(io);
-		CircuitExecution::circ_exec = t;
-		ProtocolExecution::prot_exec = new PADOEva<IO>(io, t);
-	}
-	return (PADOParty<IO>*)ProtocolExecution::prot_exec;
+    if (party == ALICE) {
+        OptHalfGateGen<IO>* t = new OptHalfGateGen<IO>(io);
+        CircuitExecution::circ_exec = t;
+        ProtocolExecution::prot_exec = new PADOGen<IO>(io, t);
+    } else {
+        OptHalfGateEva<IO>* t = new OptHalfGateEva<IO>(io);
+        CircuitExecution::circ_exec = t;
+        ProtocolExecution::prot_exec = new PADOEva<IO>(io, t);
+    }
+    return (PADOParty<IO>*)ProtocolExecution::prot_exec;
 }
-
 
 inline OfflinePADOGen* setup_offline_backend(int party) {
-	assert(party == ALICE);
-	OfflineHalfGateGen * t = new OfflineHalfGateGen();
-	CircuitExecution::circ_exec = t;
-	ProtocolExecution::prot_exec = new OfflinePADOGen(t);
-	return (OfflinePADOGen*)ProtocolExecution::prot_exec;
+    assert(party == ALICE);
+    OfflineHalfGateGen* t = new OfflineHalfGateGen();
+    CircuitExecution::circ_exec = t;
+    ProtocolExecution::prot_exec = new OfflinePADOGen(t);
+    return (OfflinePADOGen*)ProtocolExecution::prot_exec;
 }
 
-
 inline void finalize_backend() {
-	delete CircuitExecution::circ_exec;
-	delete ProtocolExecution::prot_exec;
+    delete CircuitExecution::circ_exec;
+    delete ProtocolExecution::prot_exec;
 }
 
 /*template<typename IO>
