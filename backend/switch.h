@@ -31,9 +31,6 @@ void setup_protocol(IO* io, BoolIO<IO>** ios, int threads, int party) {
 }
 
 void switch_to_zk() {
-    gc_circ_buf = CircuitExecution::circ_exec;
-    gc_prot_buf = ProtocolExecution::prot_exec;
-
     CircuitExecution::circ_exec = zk_circ_buf;
     ProtocolExecution::prot_exec = zk_prot_buf;
 }
@@ -44,9 +41,6 @@ void sync_zk_gc() {
 }
 
 void switch_to_gc() {
-    zk_circ_buf = CircuitExecution::circ_exec;
-    zk_prot_buf = ProtocolExecution::prot_exec;
-
     CircuitExecution::circ_exec = gc_circ_buf;
     ProtocolExecution::prot_exec = gc_prot_buf;
 }

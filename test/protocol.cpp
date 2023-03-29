@@ -429,6 +429,9 @@ int main(int argc, char** argv) {
     start = emp::clock_start();
     full_protocol<NetIO>(io, cot, party);
     cout << "total time: " << emp::time_from(start) << " us" << endl;
+
+    cout << "gc AND gates: " << dec << gc_circ_buf->num_and() << endl;
+    cout << "zk AND gates: " << dec << zk_circ_buf->num_and() << endl;
     finalize_protocol();
 
     bool cheat = CheatRecord::cheated();

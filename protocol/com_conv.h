@@ -97,6 +97,21 @@ class ComConv {
             BN_mod(exp[i], exp[i], q, ctx);
         }
     }
+
+    ComConv(IO* io, COT<IO>* ot, BIGNUM* q2, block bDelta) : io(io) {
+        q = BN_new();
+        BN_copy(this->q, q2);
+        ctx = BN_CTX_new();
+        ole = new OLE<IO>(io, ot, q2, BN_num_bits(q2));
+
+        exp.resize(BN_num_bits(q2));
+        for (int i = 0; i < BN_num_bits(q2); ++i) {
+            exp[i] = BN_new();
+            BN_set_bit(exp[i], i);
+            BN_mod(exp[i], exp[i], q, ctx);
+        }
+        this->bDelta = bDelta;
+    }
     ~ComConv() {
         if (aDelta != nullptr)
             BN_free(aDelta);
@@ -124,13 +139,26 @@ class ComConv {
         hash.digest(res);
     }
 
-    void commitDelta(block* dptr = nullptr, BIGNUM* aDelta = nullptr) {
+    // void commitDelta(block* dptr = nullptr, BIGNUM* aDelta = nullptr) {
+    //     if (aDelta != nullptr) {
+    //         PRG prg;
+    //         prg.random_data(&com_seed, sizeof(block));
+    //         compute_hash(com, com_seed, *dptr, aDelta);
+    //         io->send_data(com, Hash::DIGEST_SIZE);
+    //         bDelta = *dptr;
+    //         this->aDelta = BN_new();
+    //         BN_copy(this->aDelta, aDelta);
+    //     } else {
+    //         io->recv_data(com, Hash::DIGEST_SIZE);
+    //     }
+    // }
+
+    void commitDelta(BIGNUM* aDelta = nullptr) {
         if (aDelta != nullptr) {
             PRG prg;
             prg.random_data(&com_seed, sizeof(block));
-            compute_hash(com, com_seed, *dptr, aDelta);
+            compute_hash(com, com_seed, bDelta, aDelta);
             io->send_data(com, Hash::DIGEST_SIZE);
-            bDelta = *dptr;
             this->aDelta = BN_new();
             BN_copy(this->aDelta, aDelta);
         } else {
@@ -254,7 +282,8 @@ class ComConv {
         // choose random arithmetic Delta (aDelta), commit bDelta and aDelta.
         BIGNUM* Delta = BN_new();
         BN_rand_range(Delta, this->q);
-        commitDelta(&(ole->ot->Delta), Delta);
+        //commitDelta(&(ole->ot->Delta), Delta);
+        commitDelta(Delta);
         std::cout << ole->ot->Delta << std::endl;
         BN_free(Delta);
 
@@ -388,6 +417,7 @@ class ComConv {
                           vector<BIGNUM*>& rnds,
                           vector<block> bMACs,
                           PedersenComm& pc) {
+        std::cout << ole->ot->Delta << std::endl;
         bool res = true;
         // receive commitment of bDelta and aDelta.
         commitDelta();
