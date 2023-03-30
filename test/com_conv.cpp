@@ -37,7 +37,8 @@ void com_conv_test(
     for (int i = 0; i < raw.size(); i++)
         raw[i] = input[i].bit;
 
-    size_t chunk_len = (array_len + BN_num_bits(q) - 1) / BN_num_bits(q);
+    size_t batch_size = 255;
+    size_t chunk_len = (array_len + batch_size - 1) / batch_size;
     vector<EC_POINT*> coms;
     vector<BIGNUM*> rnds;
 
@@ -48,27 +49,30 @@ void com_conv_test(
         coms[i] = EC_POINT_new(group);
         rnds[i] = BN_new();
     }
+    size_t comm = io->counter;
     ComConv<IO> conv(io, cot, q, Delta);
     PedersenComm pc(h, group);
 
     if (party == BOB) {
         auto start = emp::clock_start();
-        bool res = conv.compute_com_send(coms, raw, pc);
+        bool res = conv.compute_com_send(coms, raw, pc, batch_size);
         if (res) {
             cout << "BOB check passed" << endl;
         } else {
             cout << "BOB check failed" << endl;
         }
         cout << "BOB time: " << emp::time_from(start) << " us" << endl;
+        cout << "BOB comm: " << io->counter - comm << " bytes" << endl;
     } else {
         auto start = emp::clock_start();
-        bool res = conv.compute_com_recv(coms, rnds, raw, pc);
+        bool res = conv.compute_com_recv(coms, rnds, raw, pc, batch_size);
         if (res) {
             cout << "ALICE check passed" << endl;
         } else {
             cout << "ALICE check failed" << endl;
         }
         cout << "ALICE time: " << emp::time_from(start) << " us" << endl;
+        cout << "ALICE comms: " << io->counter - comm << " bytes" << endl;
     }
 
     for (int i = 0; i < chunk_len; i++) {

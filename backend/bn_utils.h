@@ -15,15 +15,17 @@ inline void H(BIGNUM* out, block b, BIGNUM* q, BN_CTX* ctx, CCRH& ccrh) {
     BN_mod(out, out, q, ctx);
 }
 
-template<typename IO>
-inline void send_bn(IO* io, BIGNUM* bn) {
+template <typename IO>
+inline void send_bn(IO* io, BIGNUM* bn, Hash* hash = nullptr) {
     unsigned char arr[1000];
     uint32_t length = BN_bn2bin(bn, arr);
     io->send_data(&length, sizeof(uint32_t));
     io->send_data(arr, length);
+    if (hash != nullptr)
+        hash->put(arr, length);
 }
 
-template<typename IO>
+template <typename IO>
 inline void recv_bn(IO* io, BIGNUM* bn, Hash* hash = nullptr) {
     unsigned char arr[1000];
     uint32_t length = -1;

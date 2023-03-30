@@ -13,11 +13,11 @@ class PedersenComm {
     BN_CTX* ctx;
 
     // h should be chosen very carefully, without any trapdoor.
-    PedersenComm(EC_POINT* h1, EC_GROUP* group) {
+    PedersenComm(EC_POINT* h, EC_GROUP* group) {
         ctx = BN_CTX_new();
         this->group = group;
-        h = EC_POINT_new(group);
-        EC_POINT_copy(h, h1);
+        this->h = EC_POINT_new(group);
+        EC_POINT_copy(this->h, h);
     }
 
     ~PedersenComm() {
@@ -78,6 +78,7 @@ class ComConv {
     CCRH ccrh;
     unsigned char com[Hash::DIGEST_SIZE];
     unsigned char msg_com[Hash::DIGEST_SIZE];
+    Hash chi_hash;
     // q is the order of the ECC group.
     BIGNUM* q;
     BN_CTX* ctx;
@@ -85,19 +86,6 @@ class ComConv {
     block com_seed;
     OLE<IO>* ole;
     vector<BIGNUM*> exp;
-    ComConv(IO* io, COT<IO>* ot, BIGNUM* q2) : io(io) {
-        q = BN_new();
-        BN_copy(this->q, q2);
-        ctx = BN_CTX_new();
-        ole = new OLE<IO>(io, ot, q2, BN_num_bits(q2));
-
-        exp.resize(BN_num_bits(q2));
-        for (int i = 0; i < BN_num_bits(q2); ++i) {
-            exp[i] = BN_new();
-            BN_set_bit(exp[i], i);
-            BN_mod(exp[i], exp[i], q, ctx);
-        }
-    }
 
     ComConv(IO* io, COT<IO>* ot, BIGNUM* q2, block bDelta) : io(io) {
         q = BN_new();
@@ -148,8 +136,10 @@ class ComConv {
             io->send_data(com, Hash::DIGEST_SIZE);
             this->aDelta = BN_new();
             BN_copy(this->aDelta, aDelta);
+            chi_hash.put(com, Hash::DIGEST_SIZE);
         } else {
             io->recv_data(com, Hash::DIGEST_SIZE);
+            chi_hash.put(com, Hash::DIGEST_SIZE);
         }
     }
 
@@ -162,6 +152,7 @@ class ComConv {
             recv_bn(io, msg[i], &hash);
         }
         hash.digest(msg_com);
+        chi_hash.put(msg_com, Hash::DIGEST_SIZE);
 
         for (int i = 0; i < bMACs.size(); ++i) {
             H(aMACs[i], bMACs[i], q, ctx, ccrh);
@@ -175,6 +166,7 @@ class ComConv {
     }
 
     void convert_send(vector<BIGNUM*>& aKEYs, vector<block>& bKEYs) {
+        Hash hash;
         vector<BIGNUM*> msg;
         msg.resize(bKEYs.size());
         for (int i = 0; i < bKEYs.size(); ++i)
@@ -182,7 +174,10 @@ class ComConv {
 
         convert(msg, aKEYs, bKEYs, bDelta, aDelta);
         for (int i = 0; i < msg.size(); ++i)
-            send_bn(io, msg[i]);
+            send_bn(io, msg[i], &hash);
+
+        hash.digest(msg_com);
+        chi_hash.put(msg_com, Hash::DIGEST_SIZE);
 
         for (int i = 0; i < bKEYs.size(); ++i)
             BN_free(msg[i]);
@@ -264,7 +259,34 @@ class ComConv {
         BN_sub(rKEY, q, rKEY);
     }
 
-    bool compute_com_send(vector<EC_POINT*>& com, vector<block> bKEYs, PedersenComm& pc) {
+    inline void gen_chi(vector<BIGNUM*>& chi, block seed) {
+        PRG prg(&seed);
+        unsigned char tmp[BN_num_bytes(q)];
+        for (int i = 0; i < chi.size(); i++) {
+            prg.random_data(tmp, BN_num_bytes(q));
+            BN_bin2bn(tmp, BN_num_bytes(q), chi[i]);
+            BN_mod(chi[i], chi[i], q, ctx);
+        }
+    }
+
+    bool compute_com_send(vector<EC_POINT*>& com,
+                          vector<block> bKEYs,
+                          PedersenComm& pc,
+                          uint64_t batch_size) {
+        BIGNUM* bs_int = BN_new();
+        BIGNUM* ONE = BN_new();
+
+        BN_set_bit(bs_int, batch_size);
+        BN_set_word(ONE, 1);
+        // 2^{bs} - 1
+        BN_sub(bs_int, bs_int, ONE);
+        int check = BN_cmp(bs_int, q);
+        if (check != -1)
+            error("batch size is too large!\n");
+
+        BN_free(bs_int);
+        BN_free(ONE);
+
         bool res = true;
         // choose random arithmetic Delta (aDelta), commit bDelta and aDelta.
         BIGNUM* Delta = BN_new();
@@ -282,10 +304,8 @@ class ComConv {
             aKEYs[i] = BN_new();
         }
         convert_send(aKEYs, bKEYs);
-
-        //  separate input bits into chunks with BN_num_bits(q) bits each.
-        size_t bit_length = BN_num_bits(q);
-        size_t chunk_len = (bKEYs.size() + bit_length - 1) / bit_length;
+        //  separate input bits into chunks with batch_size bits each.
+        size_t chunk_len = (bKEYs.size() + batch_size - 1) / batch_size;
         BIGNUM* tmp = BN_new();
         vector<BIGNUM*> batch_aKEYs(chunk_len);
         for (int i = 0; i < chunk_len; i++) {
@@ -294,8 +314,8 @@ class ComConv {
         }
 
         for (int i = 0; i < chunk_len; i++) {
-            for (int j = 0; (j < bit_length) && (i * bit_length + j < bKEYs.size()); j++) {
-                BN_mod_mul(tmp, exp[j], aKEYs[i * bit_length + j], q, ctx);
+            for (int j = 0; (j < batch_size) && (i * batch_size + j < bKEYs.size()); j++) {
+                BN_mod_mul(tmp, exp[j], aKEYs[i * batch_size + j], q, ctx);
                 BN_mod_add(batch_aKEYs[i], batch_aKEYs[i], tmp, q, ctx);
             }
         }
@@ -306,22 +326,31 @@ class ComConv {
         unsigned char* buf = new unsigned char[65];
         for (int i = 0; i < chunk_len; i++) {
             io->recv_data(buf, 65);
+            chi_hash.put(buf, 65);
             EC_POINT_oct2point(pc.group, com[i], buf, 65, ctx);
         }
-
         // receive commitment of r.
         EC_POINT* comm_r = EC_POINT_new(pc.group);
         io->recv_data(buf, 65);
+        chi_hash.put(buf, 65);
         EC_POINT_oct2point(pc.group, comm_r, buf, 65, ctx);
         delete[] buf;
-
         // generate and send chi's.
         vector<BIGNUM*> chi(chunk_len);
-        for (int i = 0; i < chunk_len; i++) {
+        for (int i = 0; i < chunk_len; i++)
             chi[i] = BN_new();
-            BN_rand_range(chi[i], q);
-            send_bn(io, chi[i]);
-        }
+
+        unsigned char chi_digest[Hash::DIGEST_SIZE];
+        chi_hash.digest(chi_digest);
+        block seed = zero_block;
+        memcpy(&seed, chi_digest, sizeof(block));
+        gen_chi(chi, seed);
+
+        // for (int i = 0; i < chunk_len; i++) {
+        //     chi[i] = BN_new();
+        //     BN_rand_range(chi[i], q);
+        //     send_bn(io, chi[i]);
+        // }
 
         // generate linear combination of IT-MAC keys.
         BIGNUM* yKEY = rKEY;
@@ -401,7 +430,21 @@ class ComConv {
     bool compute_com_recv(vector<EC_POINT*>& com,
                           vector<BIGNUM*>& rnds,
                           vector<block> bMACs,
-                          PedersenComm& pc) {
+                          PedersenComm& pc,
+                          uint64_t batch_size) {
+        BIGNUM* bs_int = BN_new();
+        BIGNUM* ONE = BN_new();
+
+        BN_set_bit(bs_int, batch_size);
+        BN_set_word(ONE, 1);
+        // 2^{bs} - 1
+        BN_sub(bs_int, bs_int, ONE);
+        int check = BN_cmp(bs_int, q);
+        if (check != -1)
+            error("batch size is too large!\n");
+
+        BN_free(bs_int);
+        BN_free(ONE);
         bool res = true;
         // receive commitment of bDelta and aDelta.
         commitDelta();
@@ -416,10 +459,8 @@ class ComConv {
             aMACs[i] = BN_new();
         }
         convert_recv(aMACs, bMACs);
-
-        //  separate input bits into chunks with BN_num_bits(q) bits each.
-        size_t bit_length = BN_num_bits(q);
-        size_t chunk_len = (bMACs.size() + bit_length - 1) / bit_length;
+        //  separate input bits into chunks with batch_size bits each.
+        size_t chunk_len = (bMACs.size() + batch_size - 1) / batch_size;
 
         // compute commitment and randomness of chunks.
         vector<BIGNUM*> msg(chunk_len);
@@ -433,11 +474,11 @@ class ComConv {
 
         BIGNUM* tmp = BN_new();
         for (int i = 0; i < chunk_len; i++) {
-            for (int j = 0; (j < bit_length) && (i * bit_length + j < bMACs.size()); j++) {
-                if (getLSB(bMACs[i * bit_length + j]))
+            for (int j = 0; (j < batch_size) && (i * batch_size + j < bMACs.size()); j++) {
+                if (getLSB(bMACs[i * batch_size + j]))
                     BN_mod_add(msg[i], msg[i], exp[j], q, ctx);
 
-                BN_mod_mul(tmp, exp[j], aMACs[i * bit_length + j], q, ctx);
+                BN_mod_mul(tmp, exp[j], aMACs[i * batch_size + j], q, ctx);
                 BN_mod_add(batch_aMACs[i], batch_aMACs[i], tmp, q, ctx);
             }
             pc.commit(com[i], rnds[i], msg[i]);
@@ -456,19 +497,30 @@ class ComConv {
         for (int i = 0; i < chunk_len; i++) {
             EC_POINT_point2oct(pc.group, com[i], POINT_CONVERSION_UNCOMPRESSED, buf, 65, ctx);
             io->send_data(buf, 65);
+            chi_hash.put(buf, 65);
         }
 
         // send commitment of r.
         EC_POINT_point2oct(pc.group, comm_r, POINT_CONVERSION_UNCOMPRESSED, buf, 65, ctx);
         io->send_data(buf, 65);
+        chi_hash.put(buf, 65);
         delete[] buf;
 
         // receive chi's.
         vector<BIGNUM*> chi(chunk_len);
-        for (int i = 0; i < chunk_len; i++) {
+        for (int i = 0; i < chunk_len; i++)
             chi[i] = BN_new();
-            recv_bn(io, chi[i]);
-        }
+
+        unsigned char chi_digest[Hash::DIGEST_SIZE];
+        chi_hash.digest(chi_digest);
+        block seed = zero_block;
+        memcpy(&seed, chi_digest, sizeof(block));
+
+        gen_chi(chi, seed);
+        // for (int i = 0; i < chunk_len; i++) {
+        //     chi[i] = BN_new();
+        //     recv_bn(io, chi[i]);
+        // }
 
         // generate linear combination of IT-MAC macs.
         BIGNUM* yMAC = rMAC;
