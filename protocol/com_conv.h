@@ -12,6 +12,7 @@ class PedersenComm {
     EC_POINT* h;
     BN_CTX* ctx;
 
+    // h should be chosen very carefully, without any trapdoor.
     PedersenComm(EC_POINT* h1, EC_GROUP* group) {
         ctx = BN_CTX_new();
         this->group = group;
@@ -138,20 +139,6 @@ class ComConv {
         hash.put(arr, length);
         hash.digest(res);
     }
-
-    // void commitDelta(block* dptr = nullptr, BIGNUM* aDelta = nullptr) {
-    //     if (aDelta != nullptr) {
-    //         PRG prg;
-    //         prg.random_data(&com_seed, sizeof(block));
-    //         compute_hash(com, com_seed, *dptr, aDelta);
-    //         io->send_data(com, Hash::DIGEST_SIZE);
-    //         bDelta = *dptr;
-    //         this->aDelta = BN_new();
-    //         BN_copy(this->aDelta, aDelta);
-    //     } else {
-    //         io->recv_data(com, Hash::DIGEST_SIZE);
-    //     }
-    // }
 
     void commitDelta(BIGNUM* aDelta = nullptr) {
         if (aDelta != nullptr) {
@@ -282,9 +269,7 @@ class ComConv {
         // choose random arithmetic Delta (aDelta), commit bDelta and aDelta.
         BIGNUM* Delta = BN_new();
         BN_rand_range(Delta, this->q);
-        //commitDelta(&(ole->ot->Delta), Delta);
         commitDelta(Delta);
-        std::cout << ole->ot->Delta << std::endl;
         BN_free(Delta);
 
         // generate IT-MAC key for random r;
@@ -417,7 +402,6 @@ class ComConv {
                           vector<BIGNUM*>& rnds,
                           vector<block> bMACs,
                           PedersenComm& pc) {
-        std::cout << ole->ot->Delta << std::endl;
         bool res = true;
         // receive commitment of bDelta and aDelta.
         commitDelta();
