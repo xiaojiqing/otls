@@ -11,7 +11,43 @@
 #include "backend/offline_pado_gen.h"
 #include "backend/online_pado_gen.h"
 #include "backend/online_pado_eva.h"
+#include "backend/offline_pado_party.h"
+#include "backend/_offline_hg_gen.h"
+#include "backend/_offline_hg_eva.h"
+#include "backend/_offline_pado_gen.h"
+#include "backend/_offline_pado_eva.h"
 using namespace emp;
+
+template <typename IO>
+inline OfflinePADOParty* _setup_offline_backend(IO* io, int party) {
+    if (party == ALICE) {
+        _OfflineHalfGateGen<IO>* t = new _OfflineHalfGateGen<IO>(io);
+        CircuitExecution::circ_exec = t;
+        ProtocolExecution::prot_exec = new _OfflinePADOGen<IO>(t);
+    } else {
+        _OfflineHalfGateEva<IO>* t = new _OfflineHalfGateEva<IO>(io);
+        CircuitExecution::circ_exec = t;
+        ProtocolExecution::prot_exec = new _OfflinePADOEva<IO>(t);
+    }
+    return (OfflinePADOParty*)ProtocolExecution::prot_exec;
+}
+
+template <typename IO>
+inline void sync_offline_online(IO* io,
+                                OfflinePADOParty* offline,
+                                PADOParty<IO>* online,
+                                int party) {
+    if (party == ALICE) {
+        _OfflinePADOGen<IO>* off_gen = (_OfflinePADOGen<IO>*)offline;
+        OnlinePADOGen<IO>* on_gen = (OnlinePADOGen<IO>*)online;
+        on_gen->set_seed(off_gen->seed);
+        on_gen->gc->set_delta(off_gen->gc->delta);
+    } else {
+        _OfflinePADOEva<IO>* off_eva = (_OfflinePADOEva<IO>*)offline;
+        OnlinePADOEva<IO>* on_eva = (OnlinePADOEva<IO>*)online;
+        on_eva->gc->GC = off_eva->gc->GC;
+    }
+}
 
 template <typename IO>
 inline PADOParty<IO>* setup_online_backend(IO* io, int party) {
