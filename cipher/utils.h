@@ -11,9 +11,9 @@ using namespace emp;
 using std::string;
 using std::vector;
 
-static string circuit_file_location =
-  macro_xstr(EMP_CIRCUIT_PATH) + string("bristol_fashion/");
-static BristolFashion aes = BristolFashion((circuit_file_location + "aes_128.txt").c_str());
+// static string circuit_file_location =
+//   macro_xstr(EMP_CIRCUIT_PATH) + string("bristol_fashion/");
+// static BristolFashion aes = BristolFashion((circuit_file_location + "aes_128.txt").c_str());
 
 static string aes_ks_file = "cipher/circuit_files/aes128_ks.txt";
 static BristolFormat aes_ks = BristolFormat(aes_ks_file.c_str());
@@ -215,13 +215,13 @@ inline block ghash(block h, block* x, size_t m) {
     return y;
 }
 
-inline Integer computeAES(const Integer& key, const Integer& msg) {
-    Integer o = Integer(128, 0, PUBLIC);
-    Integer in(msg);
-    concat(in, &key, 1);
-    aes.compute(o.bits.data(), in.bits.data());
-    return o;
-}
+// inline Integer computeAES(const Integer& key, const Integer& msg) {
+//     Integer o = Integer(128, 0, PUBLIC);
+//     Integer in(msg);
+//     concat(in, &key, 1);
+//     aes.compute(o.bits.data(), in.bits.data());
+//     return o;
+// }
 
 inline Integer computeKS(Integer& key) {
     Integer o(1408, 0, PUBLIC);
