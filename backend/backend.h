@@ -30,10 +30,7 @@ inline OfflinePADOParty* setup_offline_backend(IO* io, int party) {
 }
 
 template <typename IO>
-inline void sync_offline_online(IO* io,
-                                OfflinePADOParty* offline,
-                                PADOParty<IO>* online,
-                                int party) {
+inline void sync_offline_online(OfflinePADOParty* offline, PADOParty<IO>* online, int party) {
     if (party == ALICE) {
         OfflinePADOGen<IO>* off_gen = (OfflinePADOGen<IO>*)offline;
         OnlinePADOGen<IO>* on_gen = (OnlinePADOGen<IO>*)online;

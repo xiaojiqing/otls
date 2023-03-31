@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
 
     start = clock_start();
     auto online = setup_online_backend<NetIO>(io, party);
-    sync_offline_online<NetIO>(io, offline, online, party);
+    sync_offline_online<NetIO>(offline, online, party);
 
     test_sort(party, true);
     cout << "gates: " << CircuitExecution::circ_exec->num_and() << endl;
