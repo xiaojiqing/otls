@@ -16,18 +16,21 @@ static unsigned char master_key_label[] = {"master key"};
 static unsigned char key_expansion_label[] = {"key expansion"};
 static unsigned char client_finished_label[] = {"client finished"};
 static unsigned char server_finished_label[] = {"server finished"};
+static unsigned char extended_master_key_label[] = {"extended master secret"};
 
 static size_t master_key_label_length = sizeof(master_key_label) - 1;
 static size_t key_expansion_label_length = sizeof(key_expansion_label) - 1;
 static size_t client_finished_label_length = sizeof(client_finished_label) - 1;
 static size_t server_finished_label_length = sizeof(server_finished_label) - 1;
+static size_t extended_master_key_label_length = sizeof(extended_master_key_label) - 1;
 
-static size_t master_key_length = 384 / 8;
-static size_t expansion_key_length = 448 / 8;
+static const size_t master_key_length = 384 / 8;
+static const size_t expansion_key_length = 448 / 8;
 static const size_t finished_msg_length = 96 / 8;
 static const size_t tag_length = 16;
 static const size_t iv_length = 12;
 static const size_t key_length = 128 / 8;
+static const size_t extended_master_key_length = 384 / 8;
 
 template <typename IO>
 class HandShake {
@@ -205,6 +208,36 @@ class HandShake {
                         master_key_label_length, seed, seed_len, true, true);
 
         delete[] seed;
+        delete[] buf;
+    }
+
+    // This extends the master key generation, chose one of them when integrating TLS.
+    inline void compute_extended_master_key(const BIGNUM* pms,
+                                            const unsigned char* session_hash,
+                                            size_t hash_len) {
+        size_t len = BN_num_bytes(pms);
+        unsigned char* buf = new unsigned char[len];
+        BN_bn2bin(pms, buf);
+        reverse(buf, buf + len);
+        Integer pmsa, pmsb;
+
+        // commit the IT-MAC of zk_2 in addmod.
+        switch_to_zk();
+        zk_pms = Integer(len * 8, buf, ALICE);
+        sync_zk_gc<IO>();
+        switch_to_gc();
+
+        pmsa = Integer(len * 8, buf, ALICE);
+        pmsb = Integer(len * 8, buf, BOB);
+
+        Integer pmsbits;
+        addmod(pmsbits, pmsa, pmsb, q);
+
+        prf.init(hmac, pmsbits);
+        prf.opt_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
+                        extended_master_key_label, extended_master_key_label_length,
+                        session_hash, hash_len, true, true);
+
         delete[] buf;
     }
 
@@ -405,6 +438,33 @@ class HandShake {
                         master_key_label_length, seed, seed_len, true, true, true);
 
         delete[] seed;
+        delete[] buf;
+    }
+
+    // ALICE knows pms, which is the entire value, not a share.
+    inline void prove_extended_master_key(Integer& ms,
+                                          const BIGNUM* pms,
+                                          const unsigned char* session_hash,
+                                          size_t hash_len,
+                                          int party) {
+        size_t len = BN_num_bytes(q);
+        unsigned char* buf = new unsigned char[len];
+
+        if (party == ALICE)
+            BN_mod_sub(bn_pms, pms, bn_pms, q, ctx);
+
+        BN_bn2bin(bn_pms, buf);
+        reverse(buf, buf + len);
+        Integer z1(len * 8, buf, PUBLIC);
+
+        Integer pmsbits;
+        addmod(pmsbits, z1, zk_pms, q);
+
+        prf.init(hmac, pmsbits);
+        prf.opt_compute(hmac, ms, extended_master_key_length * 8, pmsbits,
+                        extended_master_key_label, extended_master_key_label_length,
+                        session_hash, hash_len, true, true, true);
+
         delete[] buf;
     }
 

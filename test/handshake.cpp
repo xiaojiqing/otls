@@ -53,7 +53,8 @@ void handshake_test(IO* io, COT<IO>* cot, int party) {
     BIGNUM* full_pms = BN_new();
     hs->compute_pms_online(pms, V, party);
 
-    hs->compute_master_key(pms, rc, 32, rs, 32);
+    //hs->compute_master_key(pms, rc, 32, rs, 32);
+    hs->compute_extended_master_key(pms, rc, 32);
 
     hs->compute_expansion_keys(rc, 32, rs, 32);
 
@@ -120,7 +121,8 @@ void handshake_test(IO* io, COT<IO>* cot, int party) {
 
     switch_to_zk();
     Integer ms, key_c, key_s;
-    hs->prove_master_key(ms, full_pms, rc, 32, rs, 32, party);
+    //hs->prove_master_key(ms, full_pms, rc, 32, rs, 32, party);
+    hs->prove_extended_master_key(ms, full_pms, rc, 32, party);
     hs->prove_expansion_keys(key_c, key_s, ms, rc, 32, rs, 32, party);
 
     AEAD_Proof<IO>* aead_proof_c =
