@@ -5,12 +5,12 @@
 using namespace emp;
 
 template <typename IO>
-class _OfflineHalfGateEva : public CircuitExecution {
+class OfflineHalfGateEva : public CircuitExecution {
    public:
     IO* io;
     int64_t gid = 0;
     vector<block> GC;
-    _OfflineHalfGateEva(IO* io) : io(io) {}
+    OfflineHalfGateEva(IO* io) : io(io) {}
     block public_label(bool b) override { return zero_block; }
 
     block and_gate(const block& a, const block& b) override {
