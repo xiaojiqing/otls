@@ -80,7 +80,6 @@ int main(int argc, char** argv) {
     test_sort(party, true);
     cout << "gates: " << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
-    delete offline;
     cout << "online:" << time_from(start) << "\n";
 
     delete io;

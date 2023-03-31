@@ -47,6 +47,7 @@ inline void sync_offline_online(IO* io,
         OnlinePADOEva<IO>* on_eva = (OnlinePADOEva<IO>*)online;
         on_eva->gc->GC = off_eva->gc->GC;
     }
+    delete offline;
 }
 
 template <typename IO>
