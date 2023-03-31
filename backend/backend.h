@@ -39,6 +39,7 @@ inline void sync_offline_online(IO* io,
         OnlinePADOGen<IO>* on_gen = (OnlinePADOGen<IO>*)online;
         on_gen->set_seed(off_gen->seed);
         on_gen->gc->set_delta(off_gen->gc->delta);
+        on_gen->gc->out_labels = off_gen->gc->out_labels;
     } else {
         OfflinePADOEva<IO>* off_eva = (OfflinePADOEva<IO>*)offline;
         OnlinePADOEva<IO>* on_eva = (OnlinePADOEva<IO>*)online;

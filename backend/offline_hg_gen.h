@@ -12,8 +12,10 @@ class OfflineHalfGateGen : public CircuitExecution {
     block delta;
     PRP prp;
     block constant[2];
+    std::deque<block> out_labels;
 
-    OfflineHalfGateGen(IO* io) : io(io) {
+    OfflineHalfGateGen(IO* io)
+        : io(io) {
         block tmp;
         PRG().random_block(&tmp, 1);
         set_delta(tmp);
@@ -33,6 +35,7 @@ class OfflineHalfGateGen : public CircuitExecution {
         garble_gate_garble_halfgates(a, a ^ delta, b, b ^ delta, &out[0], &out[1], delta,
                                      table, gid++, &prp.aes);
         io->send_block(table, 2);
+        out_labels.push_back(out[0]);
         return out[0];
     }
 
