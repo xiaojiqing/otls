@@ -12,7 +12,7 @@
 using namespace emp;
 using namespace std;
 
-static unsigned char master_key_label[] = {"master key"};
+static unsigned char master_key_label[] = {"master secret"};
 static unsigned char key_expansion_label[] = {"key expansion"};
 static unsigned char client_finished_label[] = {"client finished"};
 static unsigned char server_finished_label[] = {"server finished"};
@@ -25,10 +25,10 @@ static size_t server_finished_label_length = sizeof(server_finished_label) - 1;
 static size_t extended_master_key_label_length = sizeof(extended_master_key_label) - 1;
 
 static const size_t master_key_length = 384 / 8;
-static const size_t expansion_key_length = 448 / 8;
+static const size_t expansion_key_length = 320 / 8;
 static const size_t finished_msg_length = 96 / 8;
 static const size_t tag_length = 16;
-static const size_t iv_length = 12;
+static const size_t iv_length = 4;
 static const size_t key_length = 128 / 8;
 static const size_t extended_master_key_length = 384 / 8;
 
@@ -57,7 +57,9 @@ class HandShake {
 
     unsigned char client_ufin[finished_msg_length];
     unsigned char server_ufin[finished_msg_length];
-    unsigned char iv_oct[iv_length * 2];
+    unsigned char client_write_iv[iv_length];
+    unsigned char server_write_iv[iv_length];
+    //unsigned char iv_oct[iv_length * 2];
 
     HandShake(IO* io, COT<IO>* ot, EC_GROUP* group) : io(io) {
         ctx = BN_CTX_new();
@@ -263,76 +265,79 @@ class HandShake {
         client_write_key.bits.insert(client_write_key.bits.begin(),
                                      key.bits.begin() + 2 * iv_length * 8 + key_length * 8,
                                      key.bits.begin() + 2 * (iv_length * 8 + key_length * 8));
-
+        unsigned char iv_oct[iv_length * 2];
         iv.reveal<unsigned char>((unsigned char*)iv_oct, PUBLIC);
+        reverse(iv_oct, iv_oct + iv_length * 2);
+        memcpy(client_write_iv, iv_oct, iv_length);
+        memcpy(server_write_iv, iv_oct + iv_length, iv_length);
         delete[] seed;
     }
 
-    inline void compute_master_and_expansion_keys(Integer& ms,
-                                                  Integer& key,
-                                                  const BIGNUM* pms,
-                                                  const unsigned char* rc,
-                                                  size_t rc_len,
-                                                  const unsigned char* rs,
-                                                  size_t rs_len,
-                                                  int party) {
-        size_t len = BN_num_bytes(pms);
-        unsigned char* buf = new unsigned char[len];
-        BN_bn2bin(pms, buf);
-        reverse(buf, buf + len);
-        Integer pmsa, pmsb;
+    // inline void compute_master_and_expansion_keys(Integer& ms,
+    //                                               Integer& key,
+    //                                               const BIGNUM* pms,
+    //                                               const unsigned char* rc,
+    //                                               size_t rc_len,
+    //                                               const unsigned char* rs,
+    //                                               size_t rs_len,
+    //                                               int party) {
+    //     size_t len = BN_num_bytes(pms);
+    //     unsigned char* buf = new unsigned char[len];
+    //     BN_bn2bin(pms, buf);
+    //     reverse(buf, buf + len);
+    //     Integer pmsa, pmsb;
 
-        // commit the IT-MAC of zk_2 in addmod.
-        switch_to_zk();
-        zk_pms = Integer(len * 8, buf, ALICE);
-        sync_zk_gc<IO>();
-        switch_to_gc();
+    //     // commit the IT-MAC of zk_2 in addmod.
+    //     switch_to_zk();
+    //     zk_pms = Integer(len * 8, buf, ALICE);
+    //     sync_zk_gc<IO>();
+    //     switch_to_gc();
 
-        // if (party == ALICE) {
-        //     pmsa = Integer(len * 8, buf, ALICE);
-        //     pmsb = Integer(len * 8, 0, BOB);
-        // } else {
-        //     pmsa = Integer(len * 8, 0, ALICE);
-        //     pmsb = Integer(len * 8, buf, BOB);
-        // }
+    //     // if (party == ALICE) {
+    //     //     pmsa = Integer(len * 8, buf, ALICE);
+    //     //     pmsb = Integer(len * 8, 0, BOB);
+    //     // } else {
+    //     //     pmsa = Integer(len * 8, 0, ALICE);
+    //     //     pmsb = Integer(len * 8, buf, BOB);
+    //     // }
 
-        pmsa = Integer(len * 8, buf, ALICE);
-        pmsb = Integer(len * 8, buf, BOB);
+    //     pmsa = Integer(len * 8, buf, ALICE);
+    //     pmsb = Integer(len * 8, buf, BOB);
 
-        Integer pmsbits;
-        addmod(pmsbits, pmsa, pmsb, q);
+    //     Integer pmsbits;
+    //     addmod(pmsbits, pmsa, pmsb, q);
 
-        size_t seed_len = rc_len + rs_len;
-        unsigned char* seed = new unsigned char[seed_len];
-        memcpy(seed, rc, rc_len);
-        memcpy(seed + rc_len, rs, rs_len);
+    //     size_t seed_len = rc_len + rs_len;
+    //     unsigned char* seed = new unsigned char[seed_len];
+    //     memcpy(seed, rc, rc_len);
+    //     memcpy(seed + rc_len, rs, rs_len);
 
-        prf.init(hmac, pmsbits);
-        prf.opt_compute(hmac, ms, master_key_length * 8, pmsbits, master_key_label,
-                        master_key_label_length, seed, seed_len, true, true);
+    //     prf.init(hmac, pmsbits);
+    //     prf.opt_compute(hmac, ms, master_key_length * 8, pmsbits, master_key_label,
+    //                     master_key_label_length, seed, seed_len, true, true);
 
-        memcpy(seed, rs, rs_len);
-        memcpy(seed + rs_len, rc, rc_len);
+    //     memcpy(seed, rs, rs_len);
+    //     memcpy(seed + rs_len, rc, rc_len);
 
-        prf.init(hmac, ms);
-        prf.opt_compute(hmac, key, expansion_key_length * 8, ms, key_expansion_label,
-                        key_expansion_label_length, seed, seed_len, true, true);
+    //     prf.init(hmac, ms);
+    //     prf.opt_compute(hmac, key, expansion_key_length * 8, ms, key_expansion_label,
+    //                     key_expansion_label_length, seed, seed_len, true, true);
 
-        delete[] buf;
-        delete[] seed;
-    }
+    //     delete[] buf;
+    //     delete[] seed;
+    // }
 
-    inline void compute_finished_msg(unsigned char* ufin,
-                                     const Integer& ms,
-                                     const unsigned char* label,
-                                     size_t label_len,
-                                     const unsigned char* tau,
-                                     size_t tau_len) {
-        Integer ufin_int;
-        prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, ms, label, label_len, tau,
-                        tau_len, true, true);
-        ufin_int.reveal<unsigned char>((unsigned char*)ufin, PUBLIC);
-    }
+    // inline void compute_finished_msg(unsigned char* ufin,
+    //                                  const Integer& ms,
+    //                                  const unsigned char* label,
+    //                                  size_t label_len,
+    //                                  const unsigned char* tau,
+    //                                  size_t tau_len) {
+    //     Integer ufin_int;
+    //     prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, ms, label, label_len, tau,
+    //                     tau_len, true, true);
+    //     ufin_int.reveal<unsigned char>((unsigned char*)ufin, PUBLIC);
+    // }
 
     inline void compute_client_finished_msg(const unsigned char* label,
                                             size_t label_len,
@@ -354,27 +359,38 @@ class HandShake {
         ufin_int.reveal<unsigned char>((unsigned char*)server_ufin, PUBLIC);
     }
 
+    // inline void encrypt_client_finished_msg(AEAD<IO>* aead_c,
+    //                                         unsigned char* ctxt,
+    //                                         unsigned char* tag,
+    //                                         const unsigned char* aad,
+    //                                         size_t aad_len,
+    //                                         int party) {
+    //     aead_c->encrypt(io, ctxt, tag, client_ufin, finished_msg_length, aad, aad_len, party);
+    // }
+
     inline void encrypt_client_finished_msg(AEAD<IO>* aead_c,
                                             unsigned char* ctxt,
                                             unsigned char* tag,
-                                            const unsigned char* aad,
-                                            size_t aad_len,
-                                            int party) {
-        aead_c->encrypt(io, ctxt, tag, client_ufin, finished_msg_length, aad, aad_len, party);
-    }
-
-    inline void encrypt_client_finished_msg(AEAD<IO>& aead_c,
-                                            unsigned char* ctxt,
-                                            unsigned char* tag,
                                             const unsigned char* ufinc,
+                                            size_t ufinc_len,
                                             const unsigned char* aad,
                                             size_t aad_len,
                                             int party) {
-        aead_c.enc_finished_msg(io, ctxt, tag, ufinc, finished_msg_length, aad, aad_len,
-                                party);
+        aead_c->encrypt(io, ctxt, tag, ufinc, ufinc_len, aad, aad_len, party);
     }
 
     // The ufins string is computed by pado and client, need to check the equality with the decrypted string
+    inline bool decrypt_server_finished_msg(AEAD<IO>* aead_s,
+                                            unsigned char* msg,
+                                            const unsigned char* ctxt,
+                                            size_t ctxt_len,
+                                            const unsigned char* tag,
+                                            const unsigned char* aad,
+                                            size_t aad_len,
+                                            int party) {
+        return aead_s->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, party);
+    }
+
     inline bool decrypt_and_check_server_finished_msg(AEAD<IO>* aead_s,
                                                       const unsigned char* ctxt,
                                                       const unsigned char* tag,
@@ -390,22 +406,22 @@ class HandShake {
         return res1 & res2;
     }
 
-    inline bool decrypt_and_check_server_finished_msg(AEAD<IO>& aead_s,
-                                                      const unsigned char* ufins,
-                                                      const unsigned char* ctxt,
-                                                      const unsigned char* tag,
-                                                      const unsigned char* aad,
-                                                      size_t aad_len,
-                                                      int party) {
-        unsigned char* msg = new unsigned char[finished_msg_length];
-        bool res1 = aead_s.dec_finished_msg(io, msg, ctxt, finished_msg_length, tag, aad,
-                                            aad_len, party);
+    // inline bool decrypt_and_check_server_finished_msg(AEAD<IO>& aead_s,
+    //                                                   const unsigned char* ufins,
+    //                                                   const unsigned char* ctxt,
+    //                                                   const unsigned char* tag,
+    //                                                   const unsigned char* aad,
+    //                                                   size_t aad_len,
+    //                                                   int party) {
+    //     unsigned char* msg = new unsigned char[finished_msg_length];
+    //     bool res1 = aead_s.dec_finished_msg(io, msg, ctxt, finished_msg_length, tag, aad,
+    //                                         aad_len, party);
 
-        bool res2 = (memcmp(msg, ufins, finished_msg_length) == 0);
-        delete[] msg;
+    //     bool res2 = (memcmp(msg, ufins, finished_msg_length) == 0);
+    //     delete[] msg;
 
-        return res1 & res2;
-    }
+    //     return res1 & res2;
+    // }
 
     // ALICE knows pms, which is the entire value, not a share.
     inline void prove_master_key(Integer& ms,
@@ -495,6 +511,10 @@ class HandShake {
                           key.bits.begin() + 2 * iv_length * 8 + key_length * 8,
                           key.bits.begin() + 2 * (iv_length * 8 + key_length * 8));
 
+        unsigned char iv_oct[iv_length * 2];
+        memcpy(iv_oct, client_write_iv, iv_length);
+        memcpy(iv_oct + iv_length, server_write_iv, iv_length);
+        reverse(iv_oct, iv_oct + iv_length * 2);
         check_zero<IO>(iv, iv_oct, iv_length * 2, party);
 
         // Integer expected_iv(iv_length * 8 * 2, iv_oct, PUBLIC);
@@ -526,6 +546,7 @@ class HandShake {
         prf.opt_compute(hmac, ufin, finished_msg_length * 8, ms, label, label_len, tau,
                         tau_len, true, true, true);
         check_zero<IO>(ufin, server_ufin, finished_msg_length, party);
+
     }
 
     inline void prove_enc_dec_finished_msg(AEAD_Proof<IO>* aead_proof,

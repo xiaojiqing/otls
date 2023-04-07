@@ -79,19 +79,28 @@ class PostRecord {
                                           const unsigned char* tau_c,
                                           size_t tau_c_len,
                                           const unsigned char* tau_s,
-                                          size_t tau_s_len) {
-        hs->prove_master_key(master_key, pms, rc, rc_len, rs, rs_len, party);
+                                          size_t tau_s_len,
+                                          const unsigned char* client_iv,
+                                          size_t client_iv_len,
+                                          const unsigned char* server_iv,
+                                          size_t server_iv_len,
+                                          const unsigned char* session_hash,
+                                          size_t hash_len) {
+        //hs->prove_master_key(master_key, pms, rc, rc_len, rs, rs_len, party);
+        hs->prove_extended_master_key(master_key, pms, session_hash, hash_len, party);
         hs->prove_expansion_keys(client_write_key, server_write_key, master_key, rc, rc_len,
                                  rs, rs_len, party);
+
         hs->prove_client_finished_msg(master_key, client_finished_label,
                                       client_finished_label_length, tau_c, tau_c_len, party);
+
         hs->prove_server_finished_msg(master_key, server_finished_label,
                                       server_finished_label_length, tau_s, tau_s_len, party);
 
-        aead_proof_c = new AEAD_Proof<IO>(aead_c, client_write_key, hs->iv_oct + iv_length,
-                                          iv_length, party);
+        aead_proof_c =
+          new AEAD_Proof<IO>(aead_c, client_write_key, client_iv, client_iv_len, party);
         aead_proof_s =
-          new AEAD_Proof<IO>(aead_s, server_write_key, hs->iv_oct, iv_length, party);
+          new AEAD_Proof<IO>(aead_s, server_write_key, server_iv, server_iv_len, party);
 
         hs->prove_enc_dec_finished_msg(aead_proof_c, client_finished_z0, finc_ctxt);
         hs->prove_enc_dec_finished_msg(aead_proof_s, server_finished_z0, fins_ctxt);
@@ -127,9 +136,11 @@ class PostRecord {
     // 4. check decrypting record message recv from server, multiple messages.
     inline bool finalize_check(const unsigned char* finc_ctxt,
                                const unsigned char* finc_tag,
+                               size_t finc_len,
                                const unsigned char* finc_aad,
                                const unsigned char* fins_ctxt,
                                const unsigned char* fins_tag,
+                               size_t fins_len,
                                const unsigned char* fins_aad,
                                const vector<Integer> enc_z0s,
                                const vector<unsigned char*> enc_ctxts,
@@ -156,10 +167,10 @@ class PostRecord {
         h.reveal<block>((block*)blks_h, PUBLIC);
 
         bool res = true;
-        res &= compare_tag(finc_tag, blks_h[0], blks_h[2], finc_ctxt, finished_msg_length,
-                           finc_aad, aad_len);
-        res &= compare_tag(fins_tag, blks_h[1], blks_h[3], fins_ctxt, finished_msg_length,
-                           fins_aad, aad_len);
+        res &=
+          compare_tag(finc_tag, blks_h[0], blks_h[2], finc_ctxt, finc_len, finc_aad, aad_len);
+        res &=
+          compare_tag(fins_tag, blks_h[1], blks_h[3], fins_ctxt, fins_len, fins_aad, aad_len);
         for (int i = 0; i < enc_num; i++)
             res &= compare_tag(enc_tags[i], blks_h[0], blks_h[4 + i], enc_ctxts[i],
                                enc_ctxts_len[i], enc_aads[i], aad_len);

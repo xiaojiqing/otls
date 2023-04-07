@@ -62,22 +62,25 @@ void handshake_test(IO* io, COT<IO>* cot, int party) {
                                     32);
     hs->compute_server_finished_msg(server_finished_label, server_finished_label_length, tau_s,
                                     32);
-
-    AEAD<NetIO>* aead_c = new AEAD<NetIO>(io, cot, hs->client_write_key, hs->iv_oct + 12, 12);
-    AEAD<NetIO>* aead_s = new AEAD<NetIO>(io, cot, hs->server_write_key, hs->iv_oct, 12);
+    unsigned char iv_c[12], iv_s[12];
+    memcpy(iv_c, hs->client_write_iv, iv_length);
+    memset(iv_c + iv_length, 0x11, 8);
+    memcpy(iv_s, hs->server_write_iv, iv_length);
+    memset(iv_s + iv_length, 0x22, 8);
+    AEAD<NetIO>* aead_c = new AEAD<NetIO>(io, cot, hs->client_write_key, iv_c, 12);
+    AEAD<NetIO>* aead_s = new AEAD<NetIO>(io, cot, hs->server_write_key, iv_s, 12);
 
     // These AEAD instances simulate the server side.
-    AEAD<NetIO>* aead_c_server =
-      new AEAD<NetIO>(io, cot, hs->client_write_key, hs->iv_oct + 12, 12);
+    AEAD<NetIO>* aead_c_server = new AEAD<NetIO>(io, cot, hs->client_write_key, iv_c, 12);
 
-    AEAD<NetIO>* aead_s_server =
-      new AEAD<NetIO>(io, cot, hs->server_write_key, hs->iv_oct, 12);
+    AEAD<NetIO>* aead_s_server = new AEAD<NetIO>(io, cot, hs->server_write_key, iv_s, 12);
 
     unsigned char* ctxt = new unsigned char[finished_msg_length];
     unsigned char* tag = new unsigned char[tag_length];
     unsigned char* msg = new unsigned char[finished_msg_length];
 
-    hs->encrypt_client_finished_msg(aead_c, ctxt, tag, aad, aad_len, party);
+    hs->encrypt_client_finished_msg(aead_c, ctxt, tag, hs->client_ufin, 12, aad, aad_len,
+                                    party);
     bool res =
       aead_c_server->decrypt(io, msg, ctxt, finished_msg_length, tag, aad, aad_len, party);
     cout << "res: " << res << endl;
@@ -96,8 +99,8 @@ void handshake_test(IO* io, COT<IO>* cot, int party) {
     aead_s_server->encrypt(io, ctxt2, tag2, hs->server_ufin, finished_msg_length, aad, aad_len,
                            party);
 
-    bool res2 =
-      hs->decrypt_and_check_server_finished_msg(aead_s, ctxt2, tag2, aad, aad_len, party);
+    bool res2 = hs->decrypt_server_finished_msg(aead_s, msg2, ctxt2, finished_msg_length, tag2,
+                                                aad, aad_len, party);
     cout << "res2: " << res2 << endl;
 
     // prove handshake
@@ -125,9 +128,8 @@ void handshake_test(IO* io, COT<IO>* cot, int party) {
     hs->prove_extended_master_key(ms, full_pms, rc, 32, party);
     hs->prove_expansion_keys(key_c, key_s, ms, rc, 32, rs, 32, party);
 
-    AEAD_Proof<IO>* aead_proof_c =
-      new AEAD_Proof<IO>(aead_c, key_c, hs->iv_oct + 12, 12, party);
-    AEAD_Proof<IO>* aead_proof_s = new AEAD_Proof<IO>(aead_s, key_s, hs->iv_oct, 12, party);
+    AEAD_Proof<IO>* aead_proof_c = new AEAD_Proof<IO>(aead_c, key_c, iv_c, 12, party);
+    AEAD_Proof<IO>* aead_proof_s = new AEAD_Proof<IO>(aead_s, key_s, iv_s, 12, party);
 
     hs->prove_client_finished_msg(ms, client_finished_label, client_finished_label_length,
                                   tau_c, 32, party);
