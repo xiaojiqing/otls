@@ -35,19 +35,19 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    auto start = clock_start();
+    auto start = emp::clock_start();
     auto offline = setup_offline_backend<NetIO>(io, party);
     test_sort(party, true);
-    cout << "offline:" << time_from(start) << "\n";
+    cout << "offline:" << emp::time_from(start) << "\n";
 
-    start = clock_start();
+    start = emp::clock_start();
     auto online = setup_online_backend<NetIO>(io, party);
     sync_offline_online<NetIO>(offline, online, party);
 
     test_sort(party, true);
     cout << "gates: " << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
-    cout << "online:" << time_from(start) << "\n";
+    cout << "online:" << emp::time_from(start) << "\n";
 
     delete io;
 }
