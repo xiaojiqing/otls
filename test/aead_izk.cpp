@@ -147,8 +147,8 @@ void aead_dec_garble_then_prove_test(IO* io, COT<IO>* ot, int party, bool sec_ty
     auto start = emp::clock_start();
 
     // AEAD decryption with GC
-    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key, iv, iv_len);
-    bool res = aead->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, party, sec_type);
+    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key);
+    bool res = aead->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
     if (party == ALICE) {

@@ -375,8 +375,10 @@ class HandShake {
                                             size_t ufinc_len,
                                             const unsigned char* aad,
                                             size_t aad_len,
+                                            const unsigned char* iv,
+                                            size_t iv_len,
                                             int party) {
-        aead_c->encrypt(io, ctxt, tag, ufinc, ufinc_len, aad, aad_len, party);
+        aead_c->encrypt(io, ctxt, tag, ufinc, ufinc_len, aad, aad_len, iv, iv_len, party);
     }
 
     // The ufins string is computed by pado and client, need to check the equality with the decrypted string
@@ -387,8 +389,10 @@ class HandShake {
                                             const unsigned char* tag,
                                             const unsigned char* aad,
                                             size_t aad_len,
+                                            const unsigned char* iv,
+                                            size_t iv_len,
                                             int party) {
-        return aead_s->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, party);
+        return aead_s->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party);
     }
 
     inline bool decrypt_and_check_server_finished_msg(AEAD<IO>* aead_s,
@@ -396,10 +400,12 @@ class HandShake {
                                                       const unsigned char* tag,
                                                       const unsigned char* aad,
                                                       size_t aad_len,
+                                                      const unsigned char* iv,
+                                                      size_t iv_len,
                                                       int party) {
         unsigned char* msg = new unsigned char[finished_msg_length];
         bool res1 =
-          aead_s->decrypt(io, msg, ctxt, finished_msg_length, tag, aad, aad_len, party);
+          aead_s->decrypt(io, msg, ctxt, finished_msg_length, tag, aad, aad_len, iv, iv_len, party);
 
         bool res2 = (memcmp(msg, server_ufin, finished_msg_length) == 0);
         delete[] msg;
@@ -515,6 +521,7 @@ class HandShake {
         memcpy(iv_oct, client_write_iv, iv_length);
         memcpy(iv_oct + iv_length, server_write_iv, iv_length);
         reverse(iv_oct, iv_oct + iv_length * 2);
+
         check_zero<IO>(iv, iv_oct, iv_length * 2, party);
 
         // Integer expected_iv(iv_length * 8 * 2, iv_oct, PUBLIC);
@@ -551,10 +558,11 @@ class HandShake {
 
     inline void prove_enc_dec_finished_msg(AEAD_Proof<IO>* aead_proof,
                                            Integer& z0,
-                                           const unsigned char* ctxt) {
+                                           const unsigned char* ctxt,
+                                           size_t ctxt_len) {
         // Dummy variable.
         Integer msg;
-        aead_proof->prove_aead(msg, z0, ctxt, finished_msg_length);
+        aead_proof->prove_aead(msg, z0, ctxt, ctxt_len);
     }
 
     inline void handshake_check(int party) {
