@@ -143,10 +143,10 @@ void post_record_test(IO* io, COT<IO>* cot, int party) {
     prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, fins_ctxt, finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
                                    iv_c, 12, iv_s, 12, rc, 32);
     Integer prd_cmsg, prd_cmsg2, prd_smsg, prd_smsg2, prd_cz0, prd_c2z0, prd_sz0, prd_s2z0;
-    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, 64);
-    prd->prove_record_server(prd_smsg, prd_sz0, sctxt, 64);
-    prd->prove_record_client(prd_cmsg2, prd_c2z0, cctxt2, 64);
-    prd->prove_record_server_last(prd_smsg2, prd_s2z0, sctxt2, 64);
+    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, 64, iv_c, 12);
+    prd->prove_record_server(prd_smsg, prd_sz0, sctxt, 64, iv_s, 12);
+    prd->prove_record_client(prd_cmsg2, prd_c2z0, cctxt2, 64, iv_c, 12);
+    prd->prove_record_server_last(prd_smsg2, prd_s2z0, sctxt2, 64, iv_s, 12);
 
     bool res3 = prd->finalize_check(
       finc_ctxt, finc_tag, 12, aad, fins_ctxt, fins_tag, 12, aad, {prd_cz0, prd_c2z0},

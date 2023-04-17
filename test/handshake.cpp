@@ -128,16 +128,16 @@ void handshake_test(IO* io, COT<IO>* cot, int party) {
     hs->prove_extended_master_key(ms, full_pms, rc, 32, party);
     hs->prove_expansion_keys(key_c, key_s, ms, rc, 32, rs, 32, party);
 
-    AEAD_Proof<IO>* aead_proof_c = new AEAD_Proof<IO>(aead_c, key_c, iv_c, 12, party);
-    AEAD_Proof<IO>* aead_proof_s = new AEAD_Proof<IO>(aead_s, key_s, iv_s, 12, party);
+    AEAD_Proof<IO>* aead_proof_c = new AEAD_Proof<IO>(aead_c, key_c, party);
+    AEAD_Proof<IO>* aead_proof_s = new AEAD_Proof<IO>(aead_s, key_s, party);
 
     hs->prove_client_finished_msg(ms, client_finished_label, client_finished_label_length,
                                   tau_c, 32, party);
     hs->prove_server_finished_msg(ms, server_finished_label, server_finished_label_length,
                                   tau_s, 32, party);
     Integer client_z0, server_z0;
-    hs->prove_enc_dec_finished_msg(aead_proof_c, client_z0, ctxt, finished_msg_length);
-    hs->prove_enc_dec_finished_msg(aead_proof_s, server_z0, ctxt2, finished_msg_length);
+    hs->prove_enc_dec_finished_msg(aead_proof_c, client_z0, ctxt, finished_msg_length, iv_c, 12);
+    hs->prove_enc_dec_finished_msg(aead_proof_s, server_z0, ctxt2, finished_msg_length, iv_s, 12);
 
     hs->handshake_check(party);
 

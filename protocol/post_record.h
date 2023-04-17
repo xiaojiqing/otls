@@ -100,36 +100,42 @@ class PostRecord {
                                       server_finished_label_length, tau_s, tau_s_len, party);
 
         aead_proof_c =
-          new AEAD_Proof<IO>(aead_c, client_write_key, client_iv, client_iv_len, party);
+          new AEAD_Proof<IO>(aead_c, client_write_key, party);
         aead_proof_s =
-          new AEAD_Proof<IO>(aead_s, server_write_key, server_iv, server_iv_len, party);
+          new AEAD_Proof<IO>(aead_s, server_write_key, party);
 
-        hs->prove_enc_dec_finished_msg(aead_proof_c, client_finished_z0, finc_ctxt, finc_ctxt_len);
-        hs->prove_enc_dec_finished_msg(aead_proof_s, server_finished_z0, fins_ctxt, fins_ctxt_len);
+        hs->prove_enc_dec_finished_msg(aead_proof_c, client_finished_z0, finc_ctxt, finc_ctxt_len, client_iv, client_iv_len);
+        hs->prove_enc_dec_finished_msg(aead_proof_s, server_finished_z0, fins_ctxt, fins_ctxt_len, server_iv, server_iv_len);
         hs->handshake_check(party);
     }
 
     inline void prove_record_client(Integer& msg,
                                     Integer& z0,
                                     const unsigned char* ctxt,
-                                    size_t ctxt_len) {
-        aead_proof_c->prove_aead(msg, z0, ctxt, ctxt_len, true);
+                                    size_t ctxt_len,
+                                    const unsigned char* iv,
+                                    size_t iv_len) {
+        aead_proof_c->prove_aead(msg, z0, ctxt, ctxt_len, iv, iv_len, true);
     }
 
     // Note that this function should be invoke for every message from server.
     inline void prove_record_server(Integer& msg,
                                     Integer& z0,
                                     const unsigned char* ctxt,
-                                    size_t ctxt_len) {
-        aead_proof_s->prove_aead(msg, z0, ctxt, ctxt_len, true);
+                                    size_t ctxt_len,
+                                    const unsigned char* iv,
+                                    size_t iv_len) {
+        aead_proof_s->prove_aead(msg, z0, ctxt, ctxt_len, iv, iv_len, true);
     }
 
     // Invoke this function for the last ciphertext from server.
     inline void prove_record_server_last(Integer& msg,
                                          Integer& z0,
                                          const unsigned char* ctxt,
-                                         size_t ctxt_len) {
-        aead_proof_s->prove_aead_last(msg, z0, ctxt, ctxt_len);
+                                         size_t ctxt_len,
+                                         const unsigned char* iv,
+                                         size_t iv_len) {
+        aead_proof_s->prove_aead_last(msg, z0, ctxt, ctxt_len, iv, iv_len);
     }
 
     // 1. check encrypting client finished message (check tag)

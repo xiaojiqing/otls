@@ -130,8 +130,8 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, finc_ctxt, finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
                                    iv_c, 12, iv_s, 12, rc, 32);
     Integer prd_cmsg, prd_cmsg2, prd_smsg, prd_smsg2, prd_cz0, prd_c2z0, prd_sz0, prd_s2z0;
-    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, QUERY_BYTE_LEN);
-    prd->prove_record_server_last(prd_smsg2, prd_s2z0, cctxt, RESPONSE_BYTE_LEN);
+    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, QUERY_BYTE_LEN, iv_c, 12);
+    prd->prove_record_server_last(prd_smsg2, prd_s2z0, cctxt, RESPONSE_BYTE_LEN, iv_s, 12);
 
     // Use correct finc_ctxt and fins_ctxt!
     prd->finalize_check(finc_ctxt, finc_tag, 12, aad, finc_ctxt, finc_tag, 12, aad, {prd_cz0},

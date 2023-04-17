@@ -117,6 +117,20 @@ class AEAD {
         }
     }
 
+    inline void set_nonce(const unsigned char* iv, size_t iv_len) {
+        assert(iv_len == 12);
+
+        unsigned char* riv = new unsigned char[iv_len];
+        memcpy(riv, iv, iv_len);
+        reverse(riv, riv + iv_len);
+        nonce = Integer(96, riv, PUBLIC);
+        delete[] riv;
+
+        Integer ONE = Integer(32, 1, PUBLIC);
+        concat(nonce, &ONE, 1);
+
+    }
+
     // The in blocks are known to one or two parties.
     inline void obv_ghash(block& out, const block* in, size_t len, int party) {
         block h = mul_hs[0];
@@ -159,16 +173,7 @@ class AEAD {
 
         size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
 
-        assert(iv_len == 12);
-
-        unsigned char* riv = new unsigned char[iv_len];
-        memcpy(riv, iv, iv_len);
-        reverse(riv, riv + iv_len);
-        nonce = Integer(96, riv, PUBLIC);
-        delete[] riv;
-
-        Integer ONE = Integer(32, 1, PUBLIC);
-        concat(nonce, &ONE, 1);
+        set_nonce(iv, iv_len);
 
         Integer Z;
         gctr(Z, 1 + ctr_len);
@@ -311,16 +316,7 @@ class AEAD {
 
         bool res = false;
 
-        assert(iv_len == 12);
-
-        unsigned char* riv = new unsigned char[iv_len];
-        memcpy(riv, iv, iv_len);
-        reverse(riv, riv + iv_len);
-        nonce = Integer(96, riv, PUBLIC);
-        delete[] riv;
-
-        Integer ONE = Integer(32, 1, PUBLIC);
-        concat(nonce, &ONE, 1);
+        set_nonce(iv, iv_len);
 
         Integer Z;
         gctr(Z, 1 + ctr_len);
