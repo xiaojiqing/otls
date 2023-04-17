@@ -54,21 +54,9 @@ class AEAD_Proof {
     Integer H;
     int party;
 
-    AEAD_Proof(
-      AEAD<IO>* aead, Integer& key, const unsigned char* iv, size_t iv_len, int party) {
+    AEAD_Proof(AEAD<IO>* aead, Integer& key, int party) {
         this->aead = aead;
         this->party = party;
-
-        assert(iv_len == 12);
-
-        unsigned char* riv = new unsigned char[iv_len];
-        memcpy(riv, iv, iv_len);
-        reverse(riv, riv + iv_len);
-        nonce = Integer(96, riv, PUBLIC);
-        delete[] riv;
-
-        Integer ONE = Integer(32, 1, PUBLIC);
-        concat(nonce, &ONE, 1);
 
         expanded_key = computeKS(key);
         H = computeH();
@@ -106,15 +94,32 @@ class AEAD_Proof {
         }
     }
 
+    inline void set_nonce(const unsigned char* iv, size_t iv_len) {
+        assert(iv_len == 12);
+
+        unsigned char* riv = new unsigned char[iv_len];
+        memcpy(riv, iv, iv_len);
+        reverse(riv, riv + iv_len);
+        nonce = Integer(96, riv, PUBLIC);
+        delete[] riv;
+
+        Integer ONE = Integer(32, 1, PUBLIC);
+        concat(nonce, &ONE, 1);
+    }
+
     void prove_aead(Integer& msg,
                     Integer& tag_z0,
                     const unsigned char* ctxt,
                     size_t ctxt_len,
+                    const unsigned char* iv,
+                    size_t iv_len,
                     bool sec_type = false) {
         // u = 128 * ceil(ctxt_len/128) - 8*ctxt_len
         size_t u = 128 * ((ctxt_len * 8 + 128 - 1) / 128) - ctxt_len * 8;
 
         size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
+
+        set_nonce(iv, iv_len);
 
         Integer Z;
         gctr(Z, 1 + ctr_len);
@@ -171,11 +176,15 @@ class AEAD_Proof {
     inline void prove_aead_last(Integer& msg,
                                 Integer& tag_z0,
                                 const unsigned char* ctxt,
-                                size_t ctxt_len) {
+                                size_t ctxt_len,
+                                const unsigned char* iv,
+                                size_t iv_len) {
         // u = 128 * ceil(ctxt_len/128) - 8*ctxt_len
         size_t u = 128 * ((ctxt_len * 8 + 128 - 1) / 128) - ctxt_len * 8;
 
         size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
+
+        set_nonce(iv, iv_len);
 
         Integer Z;
         gctr(Z, 1 + ctr_len);
