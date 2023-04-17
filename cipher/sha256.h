@@ -343,7 +343,7 @@ class SHA256 {
 
         // compute the following part in plain, not in mpc.
         unsigned char* data = new unsigned char[KLEN];
-        size_t datalen = 0, bitlen = 512;
+        uint64_t datalen = 0, bitlen = 512;
 
         for (size_t i = 0; i < pub_len; i++) {
             data[datalen] = pub_input[i];
@@ -369,7 +369,7 @@ class SHA256 {
             memset(data, 0, 56);
         }
 
-        bitlen += datalen * 8;
+        bitlen += datalen * 8; /*ujnss typefix: must be 64 bit */
         data[63] = bitlen;
         data[62] = bitlen >> 8;
         data[61] = bitlen >> 16;
