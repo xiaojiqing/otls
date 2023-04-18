@@ -125,19 +125,19 @@ int main(int argc, char** argv) {
 
     Q = Integer(BN_num_bytes(q) * 8, intq, PUBLIC);
 
-    // a.reveal(tmp, PUBLIC);
-    // cout << "revealed a: ";
-    // for (int i = 0; i < 32; i++) {
-    //     cout << hex << (int)tmp[i] << " ";
-    // }
-    // cout << endl;
+    a.reveal(tmp, PUBLIC);
+    cout << "revealed a: ";
+    for (int i = 0; i < 32; i++) {
+        cout << hex << (int)tmp[i] << " ";
+    }
+    cout << endl;
 
-    // b.reveal(tmp, PUBLIC);
-    // cout << "revealed b: ";
-    // for (int i = 0; i < 32; i++) {
-    //     cout << hex << (int)tmp[i] << " ";
-    // }
-    // cout << endl;
+    b.reveal(tmp, PUBLIC);
+    cout << "revealed b: ";
+    for (int i = 0; i < 32; i++) {
+        cout << hex << (int)tmp[i] << " ";
+    }
+    cout << endl;
 
     addmod(res, a, b, Q);
     // add_test(res, a, b);
