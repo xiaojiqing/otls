@@ -7,10 +7,17 @@
 
 using namespace emp;
 
+#ifndef THREADING
+extern CircuitExecution* gc_circ_buf;
+extern ProtocolExecution* gc_prot_buf;
+extern CircuitExecution* zk_circ_buf;
+extern ProtocolExecution* zk_prot_buf;
+#else
 extern __thread CircuitExecution* gc_circ_buf;
 extern __thread ProtocolExecution* gc_prot_buf;
 extern __thread CircuitExecution* zk_circ_buf;
 extern __thread ProtocolExecution* zk_prot_buf;
+#endif
 
 inline void backup_gc_ptr() {
     gc_circ_buf = CircuitExecution::circ_exec;

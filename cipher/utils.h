@@ -14,9 +14,13 @@ using std::vector;
 // static string circuit_file_location =
 //   macro_xstr(EMP_CIRCUIT_PATH) + string("bristol_fashion/");
 // static BristolFashion aes = BristolFashion((circuit_file_location + "aes_128.txt").c_str());
-
+#ifndef THREADING
+extern BristolFormat *aes_ks;
+extern BristolFormat *aes_enc_ks;
+#else
 extern __thread BristolFormat *aes_ks;
 extern __thread BristolFormat *aes_enc_ks;
+#endif
 
 inline Integer rrot(const Integer& rhs, int sht) {
     return (rhs >> sht) ^ (rhs << (rhs.size() - sht));
