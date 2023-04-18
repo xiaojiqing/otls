@@ -4,6 +4,8 @@
 
 using namespace std;
 
+void add_test(Integer& res, Integer& a, Integer& b) { res = a + b; }
+
 int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
@@ -20,93 +22,138 @@ int main(int argc, char** argv) {
     BN_CTX* ctx = BN_CTX_new();
     EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
 
+    // setup_backend(io, party);
+    // Integer a, b, Q, res;
+
     auto offline = setup_offline_backend(io, party);
-    Integer aa(BN_num_bytes(q) * 8, 0, ALICE);
-    Integer bb(BN_num_bytes(q) * 8, 0, BOB);
+    Integer a(BN_num_bytes(q) * 8, 0, ALICE);
+    Integer b(BN_num_bytes(q) * 8, 0, BOB);
     Integer Q(BN_num_bytes(q) * 8, 0, PUBLIC);
     Integer res;
-    addmod(res, aa, bb, Q);
+    addmod(res, a, b, Q);
+    // add_test(res, a, b);
 
     auto online = setup_online_backend(io, party);
     sync_offline_online(offline, online, party);
+
     // Integer a(BN_num_bytes(q) * 8, 0, ALICE);
     // Integer b(BN_num_bytes(q) * 8, 0, BOB);
     // addmod(res, a, b, q);
-    Integer a, b, c;
-    unsigned char* achar = new unsigned char[32];
-    unsigned char* bchar = new unsigned char[32];
-    unsigned char* cchar = new unsigned char[32];
+    // Integer a, b, c;
 
-    BIGNUM* aint = BN_new();
-    BIGNUM* bint = BN_new();
-    BIGNUM* cint = BN_new();
+    // unsigned char* achar = new unsigned char[32];
+    // unsigned char* bchar = new unsigned char[32];
+    // unsigned char* cchar = new unsigned char[32];
 
-    if (party == ALICE) {
-        BN_rand(aint, 256, 0, 0);
-        BN_mod(aint, aint, q, ctx);
+    // BIGNUM* aint = BN_new();
+    // BIGNUM* bint = BN_new();
+    // BIGNUM* cint = BN_new();
 
-        BN_bn2bin(aint, achar);
+    // if (party == ALICE) {
+    //     BN_rand(aint, 256, 0, 0);
+    //     BN_mod(aint, aint, q, ctx);
 
-        io->send_data(achar, 32);
-        io->recv_data(bchar, 32);
+    //     BN_bn2bin(aint, achar);
 
-        unsigned char* aachar = new unsigned char[32];
-        memcpy(aachar, achar, 32);
-        reverse(aachar, aachar + 32);
+    //     io->send_data(achar, 32);
+    //     io->recv_data(bchar, 32);
 
-        a = Integer(BN_num_bytes(q) * 8, aachar, ALICE);
-        b = Integer(BN_num_bytes(q) * 8, 0, BOB);
-        cout << "ALICE here" << endl;
+    //     unsigned char* aachar = new unsigned char[32];
+    //     memcpy(aachar, achar, 32);
+    //     reverse(aachar, aachar + 32);
 
-        delete[] aachar;
-    } else {
-        BN_rand(bint, 256, 0, 0);
-        BN_mod(bint, bint, q, ctx);
+    //     // a = Integer(BN_num_bytes(q) * 8, aachar, ALICE);
 
-        BN_bn2bin(bint, bchar);
+    //     a = Integer(BN_num_bytes(q) * 8, 10, ALICE);
+    //     b = Integer(BN_num_bytes(q) * 8, 0, BOB);
 
-        io->recv_data(achar, 32);
-        io->send_data(bchar, 32);
+    //     cout << "a: ";
+    //     for (int i = 0; i < 32; i++) {
+    //         cout << hex << (int)aachar[i] << " ";
+    //     }
+    //     cout << endl;
 
-        unsigned char* bbchar = new unsigned char[32];
-        memcpy(bbchar, bchar, 32);
-        reverse(bbchar, bbchar + 32);
+    //     delete[] aachar;
+    // } else {
+    //     BN_rand(bint, 256, 0, 0);
+    //     BN_mod(bint, bint, q, ctx);
 
-        a = Integer(BN_num_bytes(q) * 8, 0, ALICE);
-        cout << "BOB here" << endl;
+    //     BN_bn2bin(bint, bchar);
 
-        b = Integer(BN_num_bytes(q) * 8, bbchar, BOB);
+    //     io->recv_data(achar, 32);
+    //     io->send_data(bchar, 32);
 
-        delete[] bbchar;
-    }
+    //     unsigned char* bbchar = new unsigned char[32];
+    //     memcpy(bbchar, bchar, 32);
+    //     reverse(bbchar, bbchar + 32);
 
-    BN_bin2bn(achar, 32, aint);
-    BN_bin2bn(bchar, 32, bint);
-    BN_mod_add(cint, aint, bint, q, ctx);
-    BN_bn2bin(cint, cchar);
+    //     a = Integer(BN_num_bytes(q) * 8, 0, ALICE);
+    //     // b = Integer(BN_num_bytes(q) * 8, bbchar, BOB);
+    //     b = Integer(BN_num_bytes(q) * 8, 20, BOB);
 
-    reverse(cchar, cchar + 32);
-    //Integer eres(BN_num_bytes(q) * 8, cchar, PUBLIC);
+    //     cout << "b: ";
+    //     for (int i = 0; i < 32; i++) {
+    //         cout << hex << (int)bbchar[i] << " ";
+    //     }
+    //     cout << endl;
 
-    for (int i = 0; i < 32; i++) {
-        cout << hex << (int)cchar[i] << " ";
-    }
-    cout << endl;
+    //     delete[] bbchar;
+    // }
+
+    // BN_bin2bn(achar, 32, aint);
+    // BN_bin2bn(bchar, 32, bint);
+    // BN_mod_add(cint, aint, bint, q, ctx);
+    // BN_bn2bin(cint, cchar);
+
+    // reverse(cchar, cchar + 32);
+    // //Integer eres(BN_num_bytes(q) * 8, cchar, PUBLIC);
+
+    // cout << "c: ";
+    // for (int i = 0; i < 32; i++) {
+    //     cout << hex << (int)cchar[i] << " ";
+    // }
+    // cout << endl;
+
+    a = Integer(BN_num_bytes(q) * 8, 10, ALICE);
+    b = Integer(BN_num_bytes(q) * 8, 21, BOB);
 
     unsigned char tmp[32];
-    addmod(c, a, b, q);
-    c.reveal<unsigned char>(tmp, PUBLIC);
 
+    unsigned char* intq = new unsigned char[BN_num_bytes(q)];
+    BN_bn2bin(q, intq);
+    reverse(intq, intq + BN_num_bytes(q));
+
+    Q = Integer(BN_num_bytes(q) * 8, intq, PUBLIC);
+
+    // a.reveal(tmp, PUBLIC);
+    // cout << "revealed a: ";
+    // for (int i = 0; i < 32; i++) {
+    //     cout << hex << (int)tmp[i] << " ";
+    // }
+    // cout << endl;
+
+    // b.reveal(tmp, PUBLIC);
+    // cout << "revealed b: ";
+    // for (int i = 0; i < 32; i++) {
+    //     cout << hex << (int)tmp[i] << " ";
+    // }
+    // cout << endl;
+
+    addmod(res, a, b, Q);
+    // add_test(res, a, b);
+
+    res.reveal(tmp, PUBLIC);
+    cout << "revealed c: ";
     for (int i = 0; i < 32; i++) {
         cout << hex << (int)tmp[i] << " ";
     }
     cout << endl;
 
-    int check = memcmp(tmp, cchar, 32);
-    if (check == 0)
-        cout << "test passed!" << endl;
-    else
-        cout << "test failed!" << endl;
+    // int check = memcmp(tmp, cchar, 32);
+    // if (check == 0)
+    //     cout << "test passed!" << endl;
+    // else
+    //     cout << "test failed!" << endl;
 
     // if ((eres == c).reveal<bool>()) {
     //     cout << "test passed!" << endl;
@@ -116,12 +163,12 @@ int main(int argc, char** argv) {
 
     cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
 
-    delete[] bchar;
-    delete[] achar;
-    delete[] cchar;
-    BN_free(bint);
-    BN_free(aint);
-    BN_free(cint);
+    // delete[] bchar;
+    // delete[] achar;
+    // delete[] cchar;
+    // BN_free(bint);
+    // BN_free(aint);
+    // BN_free(cint);
     BN_free(q);
     //BN_free(n19);
     BN_CTX_free(ctx);

@@ -33,5 +33,4 @@ inline void addmod(Integer& res, const Integer& a, const Integer& b, BIGNUM* q) 
     delete[] intq;
 }
 
-
 #endif
