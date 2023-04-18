@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
-project (pado)
-set(NAME "pado")
+project (otls)
+set(NAME "otls")
 
 IF(ENABLE_WASM)
   set(CMAKE_FOLDER ${CMAKE_PREFIX_PATH})
@@ -35,6 +35,18 @@ ELSE()
   find_package(emp-zk REQUIRED)
   include_directories(${EMP-ZK_INCLUDE_DIRS})
 ENDIF()
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+set(sources
+  backend/switch.cpp
+  cipher/utils.cpp
+)
+add_compile_options(-fPIC)
+add_library(otls ${sources})
+target_link_libraries(otls ${EMP-TOOL_LIBRARIES} ${EMP-ZK_LIBRARIES} dl)
+
+install(FILES cmake/otls-config.cmake DESTINATION cmake/)
+install(TARGETS otls DESTINATION lib)
 
 install(DIRECTORY backend cipher protocol DESTINATION include)
 
