@@ -11,7 +11,7 @@ class OnlineHalfGateGen : public CircuitExecution {
     block delta;
     PRP prp;
     block constant[2];
-    std::deque<block> out_labels;
+    vector<block> out_labels;
     OnlineHalfGateGen() {
         block tmp;
         PRG().random_block(&tmp, 1);
@@ -25,10 +25,7 @@ class OnlineHalfGateGen : public CircuitExecution {
     }
     block public_label(bool b) override { return b ? constant[1] : constant[0]; }
     block and_gate(const block& a, const block& b) override {
-        block out = out_labels.front();
-        out_labels.pop_front();
-        gid++;
-        return out;
+        return out_labels[gid++];
         // block out[2], table[2];
         // garble_gate_garble_halfgates(a, a ^ delta, b, b ^ delta, &out[0], &out[1], delta,
         //                              table, gid++, &prp.aes);

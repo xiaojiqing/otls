@@ -12,8 +12,7 @@ class OfflineHalfGateGen : public CircuitExecution {
     block delta;
     PRP prp;
     block constant[2];
-    std::deque<block> out_labels;
-
+    vector<block> out_labels;
     OfflineHalfGateGen(IO* io) : io(io) {
         block tmp;
         PRG().random_block(&tmp, 1);
