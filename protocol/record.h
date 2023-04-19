@@ -18,8 +18,10 @@ class Record {
                         size_t msg_len,
                         const unsigned char* aad,
                         size_t aad_len,
+                        const unsigned char* iv,
+                        size_t iv_len,
                         int party) {
-        aead_c->encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, party, true);
+        aead_c->encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, iv, iv_len, party, true);
     }
 
     // Note that: the last message from server does not need to be decrypted in MPC.
@@ -32,8 +34,11 @@ class Record {
                         const unsigned char* tag,
                         const unsigned char* aad,
                         size_t aad_len,
+                        const unsigned char* iv,
+                        size_t iv_len,
                         int party) {
-        return aead_s->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, party, true);
+        return aead_s->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party,
+                               true);
     }
 };
 #endif

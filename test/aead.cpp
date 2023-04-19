@@ -57,8 +57,8 @@ void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
     unsigned char tag[16];
 
     auto start = emp::clock_start();
-    AEAD<NetIO> aead(io, ot, key, iv, iv_len);
-    aead.encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, party, sec_type);
+    AEAD<NetIO> aead(io, ot, key);
+    aead.encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, iv, iv_len, party, sec_type);
     //aead.enc_finished_msg(io, ctxt, tag, msg, msg_len, aad, aad_len, party);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
@@ -121,8 +121,8 @@ void aead_decrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
                            0x94, 0xfa, 0xe9, 0x5a, 0xe7, 0x12, 0x1a, 0x47};
 
     auto start = emp::clock_start();
-    AEAD<NetIO> aead(io, ot, key, iv, iv_len);
-    bool res = aead.decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, party, sec_type);
+    AEAD<NetIO> aead(io, ot, key);
+    bool res = aead.decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
     if (party == ALICE) {

@@ -55,7 +55,8 @@ void post_record_test(IO* io, COT<IO>* cot, int party) {
     BIGNUM* full_pms = BN_new();
     hs->compute_pms_online(pms, V, party);
 
-    hs->compute_master_key(pms, rc, 32, rs, 32);
+    //hs->compute_master_key(pms, rc, 32, rs, 32);
+    hs->compute_extended_master_key(pms, rc, 32);
 
     hs->compute_expansion_keys(rc, 32, rs, 32);
 
@@ -64,23 +65,29 @@ void post_record_test(IO* io, COT<IO>* cot, int party) {
     hs->compute_server_finished_msg(server_finished_label, server_finished_label_length, tau_s,
                                     32);
 
-    AEAD<IO>* aead_c = new AEAD<IO>(io, cot, hs->client_write_key, hs->iv_oct + 12, 12);
-    AEAD<IO>* aead_s = new AEAD<IO>(io, cot, hs->server_write_key, hs->iv_oct, 12);
+    unsigned char iv_c[12], iv_s[12];
+    memcpy(iv_c, hs->client_write_iv, iv_length);
+    memset(iv_c + iv_length, 0x11, 8);
+    memcpy(iv_s, hs->server_write_iv, iv_length);
+    memset(iv_s + iv_length, 0x22, 8);
+    AEAD<IO>* aead_c = new AEAD<IO>(io, cot, hs->client_write_key);
+    AEAD<IO>* aead_s = new AEAD<IO>(io, cot, hs->server_write_key);
 
     Record<IO>* rd = new Record<IO>;
 
     // These AEAD instances simulate the server side.
-    AEAD<IO>* aead_c_server = new AEAD<IO>(io, cot, hs->client_write_key, hs->iv_oct + 12, 12);
+    AEAD<IO>* aead_c_server = new AEAD<IO>(io, cot, hs->client_write_key);
 
-    AEAD<IO>* aead_s_server = new AEAD<IO>(io, cot, hs->server_write_key, hs->iv_oct, 12);
+    AEAD<IO>* aead_s_server = new AEAD<IO>(io, cot, hs->server_write_key);
 
     unsigned char* finc_ctxt = new unsigned char[finished_msg_length];
     unsigned char* finc_tag = new unsigned char[tag_length];
     unsigned char* msg = new unsigned char[finished_msg_length];
 
-    hs->encrypt_client_finished_msg(aead_c, finc_ctxt, finc_tag, aad, aad_len, party);
+    hs->encrypt_client_finished_msg(aead_c, finc_ctxt, finc_tag, hs->client_ufin, 12, aad,
+                                    aad_len, iv_c, 12, party);
     bool res = aead_c_server->decrypt(io, msg, finc_ctxt, finished_msg_length, finc_tag, aad,
-                                      aad_len, party);
+                                      aad_len, iv_c, 12, party);
     cout << "res: " << res << endl;
     for (int i = 0; i < finished_msg_length; i++)
         cout << hex << (int)msg[i];
@@ -92,14 +99,14 @@ void post_record_test(IO* io, COT<IO>* cot, int party) {
 
     unsigned char* fins_ctxt = new unsigned char[finished_msg_length];
     unsigned char* fins_tag = new unsigned char[tag_length];
-    // unsigned char* msg2 = new unsigned char[finished_msg_length];
+    unsigned char* msg2 = new unsigned char[finished_msg_length];
 
     // simulate the server
     aead_s_server->encrypt(io, fins_ctxt, fins_tag, hs->server_ufin, finished_msg_length, aad,
-                           aad_len, party);
+                           aad_len, iv_s, 12, party);
 
-    bool res2 = hs->decrypt_and_check_server_finished_msg(aead_s, fins_ctxt, fins_tag, aad,
-                                                          aad_len, party);
+    bool res2 = hs->decrypt_server_finished_msg(aead_s, msg2, fins_ctxt, finished_msg_length,
+                                                fins_tag, aad, aad_len, iv_s, 12, party);
     cout << "res2: " << res2 << endl;
 
     unsigned char* cctxt = new unsigned char[64];
@@ -115,35 +122,36 @@ void post_record_test(IO* io, COT<IO>* cot, int party) {
     unsigned char* stag2 = new unsigned char[tag_length];
 
     // the client encrypts the first message, and sends to the server.
-    rd->encrypt(aead_c, io, cctxt, ctag, cmsg, 64, aad, aad_len, party);
+    rd->encrypt(aead_c, io, cctxt, ctag, cmsg, 64, aad, aad_len, iv_c, 12, party);
 
     // simulate the server, send sctxt and stag to the client.
-    aead_s_server->encrypt(io, sctxt, stag, smsg, 64, aad, aad_len, party, true);
+    aead_s_server->encrypt(io, sctxt, stag, smsg, 64, aad, aad_len, iv_s, 12, party, true);
 
     // the client decrypts the first message from the server.
-    rd->decrypt(aead_s, io, smsg, sctxt, 64, stag, aad, aad_len, party);
+    rd->decrypt(aead_s, io, smsg, sctxt, 64, stag, aad, aad_len, iv_s, 12, party);
 
     // the client encrypts the second message, and sends to the server.
-    rd->encrypt(aead_c, io, cctxt2, ctag2, cmsg, 64, aad, aad_len, party);
+    rd->encrypt(aead_c, io, cctxt2, ctag2, cmsg, 64, aad, aad_len, iv_c, 12, party);
 
     // simulate the server, send sctxt2, stag2 to the client.
-    aead_s_server->encrypt(io, sctxt2, stag2, smsg, 64, aad, aad_len, party, true);
+    aead_s_server->encrypt(io, sctxt2, stag2, smsg, 64, aad, aad_len, iv_s, 12, party, true);
 
     // prove handshake in post-record phase.
     switch_to_zk();
     PostRecord<IO>* prd = new PostRecord<IO>(io, hs, aead_c, aead_s, rd, party);
-    prd->reveal_pms();
-    prd->prove_and_check_handshake(finc_ctxt, fins_ctxt, rc, 32, rs, 32, tau_c, 32, tau_s, 32);
+    prd->reveal_pms(Ts);
+    prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, fins_ctxt, finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
+                                   iv_c, 12, iv_s, 12, rc, 32);
     Integer prd_cmsg, prd_cmsg2, prd_smsg, prd_smsg2, prd_cz0, prd_c2z0, prd_sz0, prd_s2z0;
-    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, 64);
-    prd->prove_record_server(prd_smsg, prd_sz0, sctxt, 64);
-    prd->prove_record_client(prd_cmsg2, prd_c2z0, cctxt2, 64);
-    prd->prove_record_server_last(prd_smsg2, prd_s2z0, sctxt2, 64);
+    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, 64, iv_c, 12);
+    prd->prove_record_server(prd_smsg, prd_sz0, sctxt, 64, iv_s, 12);
+    prd->prove_record_client(prd_cmsg2, prd_c2z0, cctxt2, 64, iv_c, 12);
+    prd->prove_record_server_last(prd_smsg2, prd_s2z0, sctxt2, 64, iv_s, 12);
 
     bool res3 = prd->finalize_check(
-      finc_ctxt, finc_tag, aad, fins_ctxt, fins_tag, aad, {prd_cz0, prd_c2z0}, {cctxt, cctxt2},
-      {ctag, ctag2}, {64, 64}, {aad, aad}, 2, {prd_sz0, prd_s2z0}, {sctxt, sctxt2},
-      {stag, stag2}, {64, 64}, {aad, aad}, 2, aad_len);
+      finc_ctxt, finc_tag, 12, aad, fins_ctxt, fins_tag, 12, aad, {prd_cz0, prd_c2z0},
+      {cctxt, cctxt2}, {ctag, ctag2}, {64, 64}, {aad, aad}, 2, {prd_sz0, prd_s2z0},
+      {sctxt, sctxt2}, {stag, stag2}, {64, 64}, {aad, aad}, 2, aad_len);
     cout << "res3: " << res3 << endl;
     sync_zk_gc<IO>();
     switch_to_gc();
@@ -166,7 +174,7 @@ void post_record_test(IO* io, COT<IO>* cot, int party) {
     delete[] finc_ctxt;
     delete[] fins_ctxt;
     delete[] fins_tag;
-    // delete[] msg2;
+    delete[] msg2;
     delete[] finc_tag;
     delete[] msg;
     delete[] cmsg;

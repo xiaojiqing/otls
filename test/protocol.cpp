@@ -36,7 +36,7 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
 
     BIGNUM* ts = BN_new();
     EC_POINT* Ts = EC_POINT_new(hs->group);
-    BN_set_word(ts, 1);
+    BN_set_word(ts, 2);
     EC_POINT_mul(hs->group, Ts, ts, NULL, NULL, hs->ctx);
 
     unsigned char* rc = new unsigned char[32];
@@ -75,7 +75,10 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     BIGNUM* full_pms = BN_new();
     hs->compute_pms_online(pms, V, party);
 
-    hs->compute_master_key(pms, rc, 32, rs, 32);
+    //hs->compute_master_key(pms, rc, 32, rs, 32);
+
+    // Use session_hash instead of rc!
+    hs->compute_extended_master_key(pms, rc, 32);
 
     hs->compute_expansion_keys(rc, 32, rs, 32);
 
@@ -83,8 +86,15 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
                                     32);
     hs->compute_server_finished_msg(server_finished_label, server_finished_label_length, tau_s,
                                     32);
-    AEAD<IO>* aead_c = new AEAD<IO>(io, cot, hs->client_write_key, hs->iv_oct + 12, 12);
-    AEAD<IO>* aead_s = new AEAD<IO>(io, cot, hs->server_write_key, hs->iv_oct, 12);
+
+    // padding the last 8 bytes of iv_c and iv_s according to TLS!
+    unsigned char iv_c[12], iv_s[12];
+    memcpy(iv_c, hs->client_write_iv, iv_length);
+    memset(iv_c + iv_length, 0x11, 8);
+    memcpy(iv_s, hs->server_write_iv, iv_length);
+    memset(iv_s + iv_length, 0x22, 8);
+    AEAD<IO>* aead_c = new AEAD<IO>(io, cot, hs->client_write_key);
+    AEAD<IO>* aead_s = new AEAD<IO>(io, cot, hs->server_write_key);
 
     Record<IO>* rd = new Record<IO>;
 
@@ -92,10 +102,13 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     unsigned char* finc_tag = new unsigned char[tag_length];
     unsigned char* msg = new unsigned char[finished_msg_length];
 
-    hs->encrypt_client_finished_msg(aead_c, finc_ctxt, finc_tag, aad, aad_len, party);
+    // Use correct message instead of hs->client_ufin!
+    hs->encrypt_client_finished_msg(aead_c, finc_ctxt, finc_tag, hs->client_ufin, 12, aad,
+                                    aad_len, iv_c, 12, party);
 
-    hs->decrypt_and_check_server_finished_msg(aead_s, finc_ctxt, finc_tag, aad, aad_len,
-                                              party);
+    // Use correct ciphertext instead of finc_ctxt!
+    hs->decrypt_server_finished_msg(aead_s, msg, finc_ctxt, finished_msg_length, finc_tag, aad,
+                                    aad_len, iv_s, 12, party);
     cout << "handshake time: " << emp::time_from(start) << " us" << endl;
 
     unsigned char* cctxt = new unsigned char[QUERY_BYTE_LEN];
@@ -106,21 +119,24 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     start = emp::clock_start();
 
     // the client encrypts the first message, and sends to the server.
-    rd->encrypt(aead_c, io, cctxt, ctag, cmsg, QUERY_BYTE_LEN, aad, aad_len, party);
+    rd->encrypt(aead_c, io, cctxt, ctag, cmsg, QUERY_BYTE_LEN, aad, aad_len, iv_c, 12, party);
     cout << "record time: " << emp::time_from(start) << " us" << endl;
     // prove handshake in post-record phase.
     start = emp::clock_start();
     switch_to_zk();
     PostRecord<IO>* prd = new PostRecord<IO>(io, hs, aead_c, aead_s, rd, party);
-    prd->reveal_pms();
-    prd->prove_and_check_handshake(finc_ctxt, finc_ctxt, rc, 32, rs, 32, tau_c, 32, tau_s, 32);
+    prd->reveal_pms(Ts);
+    // Use correct finc_ctxt, fins_ctxt, iv_c, iv_s according to TLS!
+    prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, finc_ctxt, finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
+                                   iv_c, 12, iv_s, 12, rc, 32);
     Integer prd_cmsg, prd_cmsg2, prd_smsg, prd_smsg2, prd_cz0, prd_c2z0, prd_sz0, prd_s2z0;
-    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, QUERY_BYTE_LEN);
-    prd->prove_record_server_last(prd_smsg2, prd_s2z0, cctxt, RESPONSE_BYTE_LEN);
+    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, QUERY_BYTE_LEN, iv_c, 12);
+    prd->prove_record_server_last(prd_smsg2, prd_s2z0, cctxt, RESPONSE_BYTE_LEN, iv_s, 12);
 
-    prd->finalize_check(finc_ctxt, finc_tag, aad, finc_ctxt, finc_tag, aad, {prd_cz0}, {cctxt},
-                        {ctag}, {QUERY_BYTE_LEN}, {aad}, 1, {prd_sz0}, {sctxt}, {stag},
-                        {RESPONSE_BYTE_LEN}, {aad}, 1, aad_len);
+    // Use correct finc_ctxt and fins_ctxt!
+    prd->finalize_check(finc_ctxt, finc_tag, 12, aad, finc_ctxt, finc_tag, 12, aad, {prd_cz0},
+                        {cctxt}, {ctag}, {QUERY_BYTE_LEN}, {aad}, 1, {prd_sz0}, {sctxt},
+                        {stag}, {RESPONSE_BYTE_LEN}, {aad}, 1, aad_len);
 
     sync_zk_gc<IO>();
     switch_to_gc();

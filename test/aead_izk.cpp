@@ -147,8 +147,8 @@ void aead_dec_garble_then_prove_test(IO* io, COT<IO>* ot, int party, bool sec_ty
     auto start = emp::clock_start();
 
     // AEAD decryption with GC
-    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key, iv, iv_len);
-    bool res = aead->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, party, sec_type);
+    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key);
+    bool res = aead->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
     if (party == ALICE) {
@@ -172,9 +172,9 @@ void aead_dec_garble_then_prove_test(IO* io, COT<IO>* ot, int party, bool sec_ty
     start = emp::clock_start();
     switch_to_zk();
     Integer key_zk(128, keyc, ALICE);
-    AEAD_Proof<IO>* aead_proof = new AEAD_Proof<IO>(aead, key_zk, iv, iv_len, party);
+    AEAD_Proof<IO>* aead_proof = new AEAD_Proof<IO>(aead, key_zk, party);
     Integer msg_zk, msg_z0;
-    aead_proof->prove_aead(msg_zk, msg_z0, ctxt, msg_len, sec_type);
+    aead_proof->prove_aead(msg_zk, msg_z0, ctxt, msg_len, iv, iv_len, sec_type);
     if (sec_type) {
         cout << msg_zk.reveal<string>() << endl;
     }

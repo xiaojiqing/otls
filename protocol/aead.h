@@ -37,18 +37,8 @@ class AEAD {
     vector<block> mul_hs;
 
     OLEF2K<IO>* ole = nullptr;
-    AEAD(IO* io, COT<IO>* ot, Integer& key, const unsigned char* iv, size_t iv_len) {
+    AEAD(IO* io, COT<IO>* ot, Integer& key) {
         ole = new OLEF2K<IO>(io, ot);
-        assert(iv_len == 12);
-
-        unsigned char* riv = new unsigned char[iv_len];
-        memcpy(riv, iv, iv_len);
-        reverse(riv, riv + iv_len);
-        nonce = Integer(96, riv, PUBLIC);
-        delete[] riv;
-
-        Integer ONE = Integer(32, 1, PUBLIC);
-        concat(nonce, &ONE, 1);
 
         expanded_key = computeKS(key);
         Integer H = computeH();
@@ -127,6 +117,19 @@ class AEAD {
         }
     }
 
+    inline void set_nonce(const unsigned char* iv, size_t iv_len) {
+        assert(iv_len == 12);
+
+        unsigned char* riv = new unsigned char[iv_len];
+        memcpy(riv, iv, iv_len);
+        reverse(riv, riv + iv_len);
+        nonce = Integer(96, riv, PUBLIC);
+        delete[] riv;
+
+        Integer ONE = Integer(32, 1, PUBLIC);
+        concat(nonce, &ONE, 1);
+    }
+
     // The in blocks are known to one or two parties.
     inline void obv_ghash(block& out, const block* in, size_t len, int party) {
         block h = mul_hs[0];
@@ -159,13 +162,17 @@ class AEAD {
                         const unsigned char* msg,
                         uint64_t msg_len,
                         const unsigned char* aad,
-                        uint64_t aad_len,
+                        size_t aad_len,
+                        const unsigned char* iv,
+                        size_t iv_len,
                         int party,
                         bool sec_type = false) {
         // u = 128 * ceil(msg_len/128) - 8*msg_len
         size_t u = 128 * ((msg_len * 8 + 128 - 1) / 128) - msg_len * 8;
 
         size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
+
+        set_nonce(iv, iv_len);
 
         Integer Z;
         gctr(Z, 1 + ctr_len);
@@ -297,7 +304,9 @@ class AEAD {
                         uint64_t ctxt_len,
                         const unsigned char* tag,
                         const unsigned char* aad,
-                        uint64_t aad_len,
+                        size_t aad_len,
+                        const unsigned char* iv,
+                        size_t iv_len,
                         int party,
                         bool sec_type = false) {
         // u = 128 * ceil(ctxt_len/128) - 8*ctxt_len
@@ -306,6 +315,8 @@ class AEAD {
         size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
 
         bool res = false;
+
+        set_nonce(iv, iv_len);
 
         Integer Z;
         gctr(Z, 1 + ctr_len);
