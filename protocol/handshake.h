@@ -4,7 +4,7 @@
 #include "cipher/hmac_sha256.h"
 #include "protocol/aead.h"
 #include "cipher/prf.h"
-#include "add.h"
+#include "addmod.h"
 #include "e2f.h"
 #include "backend/switch.h"
 #include "protocol/aead_izk.h"
