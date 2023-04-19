@@ -27,6 +27,7 @@ inline Integer rrot(const Integer& rhs, int sht) {
 }
 
 void init_files();
+void uninit_files();
 
 inline uint32_t rrot(const uint32_t& rhs, int sht) {
     return (rhs >> sht) | (rhs << (32 - sht));

@@ -19,3 +19,8 @@ void init_files() {
     aes_ks = new BristolFormat(aes_ks_file);
     aes_enc_ks = new BristolFormat(aes_enc_file);
 }
+
+void uninit_files() {
+    delete aes_ks;
+    delete aes_enc_ks;
+}

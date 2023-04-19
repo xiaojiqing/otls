@@ -201,8 +201,8 @@ int main(int argc, char** argv) {
     // cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
     // finalize_backend();
 
-    for (int i = 0; i < CheatRecord::message.size(); i++) {
-        cout << CheatRecord::message[i] << endl;
+    for (int i = 0; i < CheatRecord::message->size(); i++) {
+        cout << (*CheatRecord::message)[i] << endl;
     }
     bool cheat = CheatRecord::cheated();
     if (cheat)
