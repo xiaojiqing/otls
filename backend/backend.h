@@ -9,9 +9,41 @@
 #include "backend/pado_gen.h"
 #include "backend/pado_eva.h"
 #include "backend/offline_pado_gen.h"
+#include "backend/offline_pado_eva.h"
 #include "backend/online_pado_gen.h"
 #include "backend/online_pado_eva.h"
+#include "backend/offline_pado_party.h"
 using namespace emp;
+
+template <typename IO>
+inline OfflinePADOParty* setup_offline_backend(IO* io, int party) {
+    if (party == ALICE) {
+        OfflineHalfGateGen<IO>* t = new OfflineHalfGateGen<IO>(io);
+        CircuitExecution::circ_exec = t;
+        ProtocolExecution::prot_exec = new OfflinePADOGen<IO>(t);
+    } else {
+        OfflineHalfGateEva<IO>* t = new OfflineHalfGateEva<IO>(io);
+        CircuitExecution::circ_exec = t;
+        ProtocolExecution::prot_exec = new OfflinePADOEva<IO>(t);
+    }
+    return (OfflinePADOParty*)ProtocolExecution::prot_exec;
+}
+
+template <typename IO>
+inline void sync_offline_online(OfflinePADOParty* offline, PADOParty<IO>* online, int party) {
+    if (party == ALICE) {
+        OfflinePADOGen<IO>* off_gen = (OfflinePADOGen<IO>*)offline;
+        OnlinePADOGen<IO>* on_gen = (OnlinePADOGen<IO>*)online;
+        on_gen->set_seed(off_gen->seed);
+        on_gen->gc->set_delta(off_gen->gc->delta);
+        on_gen->gc->out_labels = off_gen->gc->out_labels;
+    } else {
+        OfflinePADOEva<IO>* off_eva = (OfflinePADOEva<IO>*)offline;
+        OnlinePADOEva<IO>* on_eva = (OnlinePADOEva<IO>*)online;
+        on_eva->gc->GC = off_eva->gc->GC;
+    }
+    delete offline;
+}
 
 template <typename IO>
 inline PADOParty<IO>* setup_online_backend(IO* io, int party) {
@@ -41,13 +73,13 @@ inline PADOParty<IO>* setup_backend(IO* io, int party) {
     return (PADOParty<IO>*)ProtocolExecution::prot_exec;
 }
 
-inline OfflinePADOGen* setup_offline_backend(int party) {
-    assert(party == ALICE);
-    OfflineHalfGateGen* t = new OfflineHalfGateGen();
-    CircuitExecution::circ_exec = t;
-    ProtocolExecution::prot_exec = new OfflinePADOGen(t);
-    return (OfflinePADOGen*)ProtocolExecution::prot_exec;
-}
+// inline OfflinePADOGen* setup_offline_backend(int party) {
+//     assert(party == ALICE);
+//     OfflineHalfGateGen* t = new OfflineHalfGateGen();
+//     CircuitExecution::circ_exec = t;
+//     ProtocolExecution::prot_exec = new OfflinePADOGen(t);
+//     return (OfflinePADOGen*)ProtocolExecution::prot_exec;
+// }
 
 inline void finalize_backend() {
     delete CircuitExecution::circ_exec;
