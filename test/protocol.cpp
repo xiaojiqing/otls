@@ -116,6 +116,7 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
 
     unsigned char* sctxt = new unsigned char[RESPONSE_BYTE_LEN];
     unsigned char* stag = new unsigned char[tag_length];
+    memset(stag, 0, tag_length);
     start = emp::clock_start();
 
     // the client encrypts the first message, and sends to the server.
@@ -161,6 +162,11 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     delete[] msg;
     delete[] cmsg;
     delete[] smsg;
+
+    delete []cctxt;
+    delete []ctag;
+    delete []sctxt;
+    delete []stag;
 
     delete aead_c;
     delete aead_s;
@@ -448,11 +454,11 @@ int main(int argc, char** argv) {
 
     cout << "gc AND gates: " << dec << gc_circ_buf->num_and() << endl;
     cout << "zk AND gates: " << dec << zk_circ_buf->num_and() << endl;
-    finalize_protocol();
 
     bool cheat = CheatRecord::cheated();
     if (cheat)
         error("cheat!\n");
+    finalize_protocol();
 
         // int port, party;
         // parse_party_and_port(argv, &party, &port);
@@ -506,10 +512,10 @@ int main(int argc, char** argv) {
         std::cout << "[Mac]Query RSS failed" << std::endl;
 #endif
     cout << "comm: " << ((io->counter) * 1.0) / 1024 << " KBytes" << endl;
-    delete io;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }
+    delete io;
     // delete io1;
     return 0;
 }
