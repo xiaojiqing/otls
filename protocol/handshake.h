@@ -182,7 +182,7 @@ class HandShake {
                                    size_t rc_len,
                                    const unsigned char* rs,
                                    size_t rs_len) {
-        size_t len = BN_num_bytes(pms);
+        size_t len = BN_num_bytes(q);
         unsigned char* buf = new unsigned char[len];
         BN_bn2bin(pms, buf);
         reverse(buf, buf + len);
