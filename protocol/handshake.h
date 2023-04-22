@@ -217,7 +217,7 @@ class HandShake {
     inline void compute_extended_master_key(const BIGNUM* pms,
                                             const unsigned char* session_hash,
                                             size_t hash_len) {
-        size_t len = BN_num_bytes(pms);
+        size_t len = BN_num_bytes(q);
         unsigned char* buf = new unsigned char[len];
         BN_bn2bin(pms, buf);
         reverse(buf, buf + len);
