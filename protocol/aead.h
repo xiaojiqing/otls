@@ -535,4 +535,92 @@ inline bool compare_tag(const unsigned char* tag,
     return res;
 }
 
+class AEADOffline {
+   public:
+    Integer expanded_key;
+    Integer nonce;
+
+    AEADOffline(Integer& key) {
+        expanded_key = computeKS(key);
+        Integer H = computeH();
+    }
+
+    inline Integer computeH() {
+        Integer in(128, 0, PUBLIC);
+        return computeAES_KS(expanded_key, in);
+    }
+
+    inline Integer inc(Integer& counter, size_t s) {
+        if (counter.size() < s) {
+            error("invalid length s!");
+        }
+        Integer msb = counter, lsb = counter;
+        msb.bits.erase(msb.bits.begin(), msb.bits.begin() + s);
+        lsb.bits.erase(lsb.bits.begin() + s, lsb.bits.end());
+        lsb = lsb + Integer(s, 1, PUBLIC);
+
+        concat(msb, &lsb, 1);
+        return msb;
+    }
+
+    inline void gctr(Integer& res, size_t m) {
+        Integer tmp(128, 0, PUBLIC);
+        for (int i = 0; i < m; i++) {
+            Integer content = nonce;
+            tmp = computeAES_KS(expanded_key, content);
+
+            concat(res, &tmp, 1);
+            nonce = inc(nonce, 32);
+        }
+    }
+
+    inline void set_nonce(const unsigned char* iv, size_t iv_len) {
+        assert(iv_len == 12);
+
+        unsigned char* riv = new unsigned char[iv_len];
+        memcpy(riv, iv, iv_len);
+        reverse(riv, riv + iv_len);
+        nonce = Integer(96, riv, PUBLIC);
+        delete[] riv;
+
+        Integer ONE = Integer(32, 1, PUBLIC);
+        concat(nonce, &ONE, 1);
+    }
+
+    inline void encrypt(uint64_t msg_len,
+                        const unsigned char* iv,
+                        uint64_t iv_len,
+                        bool sec_type = false) {
+        size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
+
+        set_nonce(iv, iv_len);
+
+        Integer Z;
+        gctr(Z, 1 + ctr_len);
+
+        if (!sec_type) {
+            // message is public
+            // unsigned char* z = new unsigned char[msg_len];
+            // Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
+            // delete[] z;
+        }
+    }
+
+    inline void decrypt(uint64_t ctxt_len,
+                        const unsigned char* iv,
+                        uint64_t iv_len,
+                        bool sec_type = false) {
+        size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
+        set_nonce(iv, iv_len);
+
+        Integer Z;
+        gctr(Z, 1 + ctr_len);
+
+        if (!sec_type) {
+            // unsigned char* z = new unsigned char[ctxt_len];
+            // Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
+            // delete[] z;
+        }
+    }
+};
 #endif

@@ -85,7 +85,11 @@ class HMAC_SHA256 : public SHA256 {
         SHA256_call++;
         Integer* o_msg = new Integer[DIGLEN];
         for (int i = 0; i < DIGLEN; i++) {
-            o_msg[i] = Integer(32, dig[i], PUBLIC);
+            // If not enable the offline-online model, use dig as public values.
+            // o_msg[i] = Integer(32, dig[i], PUBLIC);
+
+            // If enabling the offline-online model, use dig as private values (ALICE side).
+            o_msg[i] = Integer(32, dig[i], ALICE);
         }
 
         Integer omsg = o_key_pad;

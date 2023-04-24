@@ -572,4 +572,126 @@ class HandShake {
     }
 };
 
+class HandShakeOffline {
+   public:
+    HMAC_SHA256 hmac;
+    PRF prf;
+    BIGNUM* q;
+    BN_CTX* ctx;
+
+    Integer master_key;
+    Integer client_write_key;
+    Integer server_write_key;
+
+    unsigned char client_ufin[finished_msg_length];
+    unsigned char server_ufin[finished_msg_length];
+    unsigned char client_write_iv[iv_length];
+    unsigned char server_write_iv[iv_length];
+
+    HandShakeOffline(EC_GROUP* group) {
+        q = BN_new();
+        ctx = BN_CTX_new();
+        EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
+    }
+    ~HandShakeOffline() {
+        BN_CTX_free(ctx);
+        BN_free(q);
+    }
+
+    inline void compute_master_key(const unsigned char* rc,
+                                   size_t rc_len,
+                                   const unsigned char* rs,
+                                   size_t rs_len) {
+        size_t len = BN_num_bytes(q);
+        unsigned char* buf = new unsigned char[len];
+        memset(buf, 0x00, len);
+        Integer pmsa, pmsb;
+        pmsa = Integer(len * 8, buf, ALICE);
+        pmsb = Integer(len * 8, buf, BOB);
+
+        Integer pmsbits;
+        addmod(pmsbits, pmsa, pmsb, q);
+
+        size_t seed_len = rc_len + rs_len;
+        unsigned char* seed = new unsigned char[seed_len];
+        memcpy(seed, rc, rc_len);
+        memcpy(seed + rc_len, rs, rs_len);
+
+        prf.init(hmac, pmsbits);
+        prf.opt_compute(hmac, master_key, master_key_length * 8, pmsbits, master_key_label,
+                        master_key_label_length, seed, seed_len, true, true);
+
+        delete[] seed;
+        delete[] buf;
+    }
+
+    inline void compute_extended_master_key(const unsigned char* session_hash,
+                                            size_t hash_len) {
+        size_t len = BN_num_bytes(q);
+        unsigned char* buf = new unsigned char[len];
+        memset(buf, 0x00, len);
+        Integer pmsa, pmsb;
+        pmsa = Integer(len * 8, buf, ALICE);
+        pmsb = Integer(len * 8, buf, BOB);
+
+        Integer pmsbits;
+        addmod(pmsbits, pmsa, pmsb, q);
+
+        prf.init(hmac, pmsbits);
+        prf.opt_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
+                        extended_master_key_label, extended_master_key_label_length,
+                        session_hash, hash_len, true, true);
+        delete[] buf;
+    }
+
+    inline void compute_expansion_keys(const unsigned char* rc,
+                                       size_t rc_len,
+                                       const unsigned char* rs,
+                                       size_t rs_len) {
+        size_t seed_len = rc_len + rs_len;
+        unsigned char* seed = new unsigned char[seed_len];
+        memcpy(seed, rs, rs_len);
+        memcpy(seed + rs_len, rc, rc_len);
+
+        Integer key;
+        prf.init(hmac, master_key);
+        prf.opt_compute(hmac, key, expansion_key_length * 8, master_key, key_expansion_label,
+                        key_expansion_label_length, seed, seed_len, true, true);
+
+        delete[] seed;
+    }
+
+    inline void compute_client_finished_msg(const unsigned char* label,
+                                            size_t label_len,
+                                            const unsigned char* tau,
+                                            size_t tau_len) {
+        Integer ufin_int;
+        prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label, label_len,
+                        tau, tau_len, true, true);
+    }
+
+    inline void compute_server_finished_msg(const unsigned char* label,
+                                            size_t label_len,
+                                            const unsigned char* tau,
+                                            size_t tau_len) {
+        Integer ufin_int;
+        prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label, label_len,
+                        tau, tau_len, true, true);
+    }
+
+    inline void encrypt_client_finished_msg(AEADOffline* aead_c_offline,
+                                            size_t ufinc_len,
+                                            const unsigned char* iv,
+                                            size_t iv_len) {
+        aead_c_offline->encrypt(ufinc_len, iv, iv_len);
+    }
+
+    inline void decrypt_server_finished_msg(AEADOffline* aead_s_offline,
+                                            size_t ufins_len,
+                                            const unsigned char* iv,
+                                            size_t iv_len) {
+        aead_s_offline->decrypt(ufins_len, iv, iv_len);
+    }
+};
+
 #endif
