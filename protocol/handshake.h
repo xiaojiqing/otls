@@ -182,9 +182,11 @@ class HandShake {
                                    size_t rc_len,
                                    const unsigned char* rs,
                                    size_t rs_len) {
-        size_t len = BN_num_bytes(pms);
+        size_t len = BN_num_bytes(q);
+        size_t pms_len = BN_num_bytes(pms);
         unsigned char* buf = new unsigned char[len];
-        BN_bn2bin(pms, buf);
+        memset(buf, 0, len);
+        BN_bn2bin(pms, buf + (len - pms_len));
         reverse(buf, buf + len);
         Integer pmsa, pmsb;
 
@@ -217,9 +219,11 @@ class HandShake {
     inline void compute_extended_master_key(const BIGNUM* pms,
                                             const unsigned char* session_hash,
                                             size_t hash_len) {
-        size_t len = BN_num_bytes(pms);
+        size_t len = BN_num_bytes(q);
+        size_t pms_len = BN_num_bytes(pms);
         unsigned char* buf = new unsigned char[len];
-        BN_bn2bin(pms, buf);
+        memset(buf, 0, len);
+        BN_bn2bin(pms, buf + (len - pms_len));
         reverse(buf, buf + len);
         Integer pmsa, pmsb;
 
@@ -439,11 +443,13 @@ class HandShake {
                                  int party) {
         size_t len = BN_num_bytes(q);
         unsigned char* buf = new unsigned char[len];
+        memset(buf, 0, len);
 
         if (party == ALICE)
             BN_mod_sub(bn_pms, pms, bn_pms, q, ctx);
 
-        BN_bn2bin(bn_pms, buf);
+        size_t pms_len = BN_num_bytes(bn_pms);
+        BN_bn2bin(bn_pms, buf + (len - pms_len));
         reverse(buf, buf + len);
         Integer z1(len * 8, buf, PUBLIC);
 
@@ -471,11 +477,13 @@ class HandShake {
                                           int party) {
         size_t len = BN_num_bytes(q);
         unsigned char* buf = new unsigned char[len];
+        memset(buf, 0, len);
 
         if (party == ALICE)
             BN_mod_sub(bn_pms, pms, bn_pms, q, ctx);
 
-        BN_bn2bin(bn_pms, buf);
+        size_t pms_len = BN_num_bytes(bn_pms);
+        BN_bn2bin(bn_pms, buf + (len - pms_len));
         reverse(buf, buf + len);
         Integer z1(len * 8, buf, PUBLIC);
 
