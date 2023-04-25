@@ -6,7 +6,7 @@ endmacro()
 
 macro (add_test_case _name)
     add_test_executable_with_lib(${_name} "")
-      add_test(NAME ${_name} COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_${_name}" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
+    add_test(NAME ${_name} COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_${_name}" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
 endmacro()
 
 macro (add_test_case_with_run _name)
