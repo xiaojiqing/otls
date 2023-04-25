@@ -180,9 +180,12 @@ inline block mulBlock(block a, block b) {
     return _mm_xor_si128(tmp6, tmp3);
 }
 
-inline block powBlock(block a, size_t len) {
+inline block powBlock(block a, uint64_t len) {
     size_t leading_zeros = 0;
-    for (int i = sizeof(size_t) * 8 - 1; i >= 0; i--) {
+
+     /*ujnss typefix: must be 64 bit */
+    for (int i = sizeof(uint64_t) * 8 - 1; i >= 0; i--) {
+        /*ujnss typefix: must be 64 bit */
         if ((len >> i) & 1)
             break;
         leading_zeros++;
@@ -190,7 +193,8 @@ inline block powBlock(block a, size_t len) {
     block h = a;
     block res = (len & 1) ? a : set_bit(zero_block, 127);
 
-    for (int i = 1; i < sizeof(size_t) * 8 - leading_zeros; i++) {
+     /*ujnss typefix: must be 64 bit */
+    for (int i = 1; i < sizeof(uint64_t) * 8 - leading_zeros; i++) {
         h = mulBlock(h, h);
         if ((len >> i) & 1)
             res = mulBlock(h, res);
@@ -246,7 +250,7 @@ inline block integer_to_block(Integer& in) {
         error("the length of input should be 128!\n");
 
     block b = zero_block;
-    size_t one = 1;
+    uint64_t one = 1; /*ujnss typefix: must be 64 bit */
     for (int i = 0; i < 64; i++) {
         if (getLSB(in[i].bit))
             b = b ^ makeBlock(0, one << i);

@@ -27,11 +27,11 @@ class AEAD {
     // xor and zk share of z, for izk to check consistency
     deque<unsigned char*> gc_z;
     deque<Integer> zk_z;
-    deque<size_t> z_len;
+    deque<uint64_t> z_len;
 
     // opened z values and related length. Only for the case sec_type == false
     deque<unsigned char*> open_z;
-    deque<size_t> open_len;
+    deque<uint64_t> open_len;
 
     // These are the multiplicative shares h^n for h = AES(key,0)
     vector<block> mul_hs;
@@ -128,7 +128,6 @@ class AEAD {
 
         Integer ONE = Integer(32, 1, PUBLIC);
         concat(nonce, &ONE, 1);
-
     }
 
     // The in blocks are known to one or two parties.
@@ -161,7 +160,7 @@ class AEAD {
                         unsigned char* ctxt,
                         unsigned char* tag,
                         const unsigned char* msg,
-                        size_t msg_len,
+                        uint64_t msg_len,
                         const unsigned char* aad,
                         size_t aad_len,
                         const unsigned char* iv,
@@ -257,6 +256,7 @@ class AEAD {
 
         unsigned char ilen[8], mlen[8];
         for (int i = 0; i < 8; i++) {
+            /*ujnss typefix: must be 64 bit*/
             ilen[i] = (8 * aad_len) >> (7 - i) * 8;
             mlen[i] = (8 * msg_len) >> (7 - i) * 8;
         }
@@ -301,7 +301,7 @@ class AEAD {
     inline bool decrypt(IO* io,
                         unsigned char* msg,
                         const unsigned char* ctxt,
-                        size_t ctxt_len,
+                        uint64_t ctxt_len,
                         const unsigned char* tag,
                         const unsigned char* aad,
                         size_t aad_len,
@@ -394,6 +394,7 @@ class AEAD {
 
         unsigned char ilen[8], mlen[8];
         for (int i = 0; i < 8; i++) {
+            /*ujnss typefix: must be 64 bit*/
             ilen[i] = (8 * aad_len) >> (7 - i) * 8;
             mlen[i] = (8 * ctxt_len) >> (7 - i) * 8;
         }
@@ -485,9 +486,9 @@ inline void compute_tag(unsigned char* tag,
                         const block h,
                         const block z0,
                         const unsigned char* ctxt,
-                        size_t ctxt_len,
+                        uint64_t ctxt_len,
                         const unsigned char* aad,
-                        size_t aad_len) {
+                        uint64_t aad_len) {
     size_t v = 128 * ((aad_len * 8 + 128 - 1) / 128) - aad_len * 8;
     size_t u = 128 * ((ctxt_len * 8 + 128 - 1) / 128) - ctxt_len * 8;
     size_t len = u / 8 + ctxt_len + v / 8 + aad_len + 16;
@@ -495,6 +496,7 @@ inline void compute_tag(unsigned char* tag,
     unsigned char* x = new unsigned char[len];
     unsigned char ilen[8], mlen[8];
     for (int i = 0; i < 8; i++) {
+        /*ujnss typefix: must be 64 bit*/
         ilen[i] = (8 * aad_len) >> (7 - i) * 8;
         mlen[i] = (8 * ctxt_len) >> (7 - i) * 8;
     }
@@ -522,9 +524,9 @@ inline bool compare_tag(const unsigned char* tag,
                         const block h,
                         const block z0,
                         const unsigned char* ctxt,
-                        size_t ctxt_len,
+                        uint64_t ctxt_len,
                         const unsigned char* aad,
-                        size_t aad_len) {
+                        uint64_t aad_len) {
     unsigned char* ctag = new unsigned char[16];
     compute_tag(ctag, h, z0, ctxt, ctxt_len, aad, aad_len);
     bool res = (memcmp(tag, ctag, 16) == 0);

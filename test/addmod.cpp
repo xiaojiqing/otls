@@ -1,5 +1,5 @@
 #include "backend/backend.h"
-#include "protocol/add.h"
+#include "protocol/addmod.h"
 #include <iostream>
 
 using namespace std;
@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    setup_backend(io, party);
+    //setup_backend(io, party);
     // BIGNUM *q = BN_new(), *n19 = BN_new();
     // BN_set_bit(q, 255);
     // BN_set_word(n19, 19);
@@ -20,7 +20,20 @@ int main(int argc, char** argv) {
     BN_CTX* ctx = BN_CTX_new();
     EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
 
-    Integer a, b, c;
+    auto offline = setup_offline_backend(io, party);
+    Integer a(BN_num_bytes(q) * 8, 0, ALICE);
+    Integer b(BN_num_bytes(q) * 8, 0, BOB);
+    Integer res;
+    addmod(res, a, b, q);
+
+    auto online = setup_online_backend(io, party);
+    sync_offline_online(offline, online, party);
+
+    // Integer a(BN_num_bytes(q) * 8, 0, ALICE);
+    // Integer b(BN_num_bytes(q) * 8, 0, BOB);
+    // addmod(res, a, b, q);
+    // Integer a, b, c;
+
     unsigned char* achar = new unsigned char[32];
     unsigned char* bchar = new unsigned char[32];
     unsigned char* cchar = new unsigned char[32];
@@ -71,17 +84,18 @@ int main(int argc, char** argv) {
     BN_bn2bin(cint, cchar);
 
     reverse(cchar, cchar + 32);
-    Integer eres(BN_num_bytes(q) * 8, cchar, PUBLIC);
 
-    addmod(c, a, b, q);
+    addmod(res, a, b, q);
+    unsigned char tmp[32];
+    res.reveal(tmp, PUBLIC);
 
-    if ((eres == c).reveal<bool>()) {
+    int check = memcmp(tmp, cchar, 32);
+    if (check == 0)
         cout << "test passed!" << endl;
-    } else {
-        cout << "test failed" << endl;
-    }
+    else
+        cout << "test failed!" << endl;
 
-    // cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
+    cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
 
     delete[] bchar;
     delete[] achar;

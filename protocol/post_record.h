@@ -99,13 +99,13 @@ class PostRecord {
         hs->prove_server_finished_msg(master_key, server_finished_label,
                                       server_finished_label_length, tau_s, tau_s_len, party);
 
-        aead_proof_c =
-          new AEAD_Proof<IO>(aead_c, client_write_key, party);
-        aead_proof_s =
-          new AEAD_Proof<IO>(aead_s, server_write_key, party);
+        aead_proof_c = new AEAD_Proof<IO>(aead_c, client_write_key, party);
+        aead_proof_s = new AEAD_Proof<IO>(aead_s, server_write_key, party);
 
-        hs->prove_enc_dec_finished_msg(aead_proof_c, client_finished_z0, finc_ctxt, finc_ctxt_len, client_iv, client_iv_len);
-        hs->prove_enc_dec_finished_msg(aead_proof_s, server_finished_z0, fins_ctxt, fins_ctxt_len, server_iv, server_iv_len);
+        hs->prove_enc_dec_finished_msg(aead_proof_c, client_finished_z0, finc_ctxt,
+                                       finc_ctxt_len, client_iv, client_iv_len);
+        hs->prove_enc_dec_finished_msg(aead_proof_s, server_finished_z0, fins_ctxt,
+                                       fins_ctxt_len, server_iv, server_iv_len);
         hs->handshake_check(party);
     }
 

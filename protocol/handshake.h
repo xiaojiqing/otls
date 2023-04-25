@@ -4,7 +4,7 @@
 #include "cipher/hmac_sha256.h"
 #include "protocol/aead.h"
 #include "cipher/prf.h"
-#include "add.h"
+#include "addmod.h"
 #include "e2f.h"
 #include "backend/switch.h"
 #include "protocol/aead_izk.h"
@@ -408,8 +408,8 @@ class HandShake {
                                                       size_t iv_len,
                                                       int party) {
         unsigned char* msg = new unsigned char[finished_msg_length];
-        bool res1 =
-          aead_s->decrypt(io, msg, ctxt, finished_msg_length, tag, aad, aad_len, iv, iv_len, party);
+        bool res1 = aead_s->decrypt(io, msg, ctxt, finished_msg_length, tag, aad, aad_len, iv,
+                                    iv_len, party);
 
         bool res2 = (memcmp(msg, server_ufin, finished_msg_length) == 0);
         delete[] msg;
@@ -561,7 +561,6 @@ class HandShake {
         prf.opt_compute(hmac, ufin, finished_msg_length * 8, ms, label, label_len, tau,
                         tau_len, true, true, true);
         check_zero<IO>(ufin, server_ufin, finished_msg_length, party);
-
     }
 
     inline void prove_enc_dec_finished_msg(AEAD_Proof<IO>* aead_proof,

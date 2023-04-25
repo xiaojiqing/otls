@@ -54,8 +54,7 @@ class AEAD_Proof {
     Integer H;
     int party;
 
-    AEAD_Proof(
-      AEAD<IO>* aead, Integer& key, int party) {
+    AEAD_Proof(AEAD<IO>* aead, Integer& key, int party) {
         this->aead = aead;
         this->party = party;
 
@@ -106,7 +105,6 @@ class AEAD_Proof {
 
         Integer ONE = Integer(32, 1, PUBLIC);
         concat(nonce, &ONE, 1);
-
     }
 
     void prove_aead(Integer& msg,

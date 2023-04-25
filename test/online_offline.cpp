@@ -32,49 +32,22 @@ void test_sort(int party, bool online = false) {
 }
 
 int main(int argc, char** argv) {
-    auto start = clock_start();
     int port, party;
     parse_party_and_port(argv, &party, &port);
-
-    OfflinePADOGen* offline;
-    if (party == ALICE) {
-        offline = setup_offline_backend(party);
-        test_sort(party, true);
-    }
-
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    vector<block> GCvec;
-    block seed, delta;
-    if (party == ALICE) {
-        size_t length = offline->gc->GC.size();
-        io->send_data(&length, sizeof(size_t));
-        io->send_block(offline->gc->GC.data(), length);
-        seed = offline->seed;
-        delta = offline->gc->delta;
-    } else {
-        size_t length;
-        io->recv_data(&length, sizeof(size_t));
-        GCvec.resize(length);
-        io->recv_block(GCvec.data(), length);
-    }
-    finalize_backend();
-    cout << "offline:" << time_from(start) << "\n";
-    start = clock_start();
+    auto start = emp::clock_start();
+    auto offline = setup_offline_backend<NetIO>(io, party);
+    test_sort(party, true);
+    cout << "offline:" << emp::time_from(start) << "\n";
 
-    auto back = setup_online_backend(io, party);
-    if (party == ALICE) {
-        OnlinePADOGen<NetIO>* gen = (OnlinePADOGen<NetIO>*)back;
-        gen->set_seed(seed);
-        gen->gc->set_delta(delta);
-    } else {
-        OnlinePADOEva<NetIO>* eva = (OnlinePADOEva<NetIO>*)back;
-        eva->gc->GC = GCvec;
-    }
+    start = emp::clock_start();
+    auto online = setup_online_backend<NetIO>(io, party);
+    sync_offline_online<NetIO>(offline, online, party);
 
     test_sort(party, true);
     cout << "gates: " << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
-    cout << "online:" << time_from(start) << "\n";
+    cout << "online:" << emp::time_from(start) << "\n";
 
     delete io;
 }

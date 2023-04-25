@@ -37,7 +37,8 @@ class Record {
                         const unsigned char* iv,
                         size_t iv_len,
                         int party) {
-        return aead_s->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, true);
+        return aead_s->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party,
+                               true);
     }
 };
 #endif
