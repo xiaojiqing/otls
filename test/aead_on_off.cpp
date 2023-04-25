@@ -51,8 +51,13 @@ void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
     unsigned char* ctxt = new unsigned char[msg_len];
     unsigned char tag[16];
 
+    auto comm = io->counter;
     AEAD<NetIO> aead(io, ot, key);
+    cout << "constructor comm: " << io->counter - comm << endl;
+
+    comm = io->counter;
     aead.encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, iv, iv_len, party, sec_type);
+    cout << "encrypt comm: " << io->counter - comm << endl;
     //aead.enc_finished_msg(io, ctxt, tag, msg, msg_len, aad, aad_len, party);
 
     cout << "tag: ";
@@ -169,26 +174,29 @@ int main(int argc, char** argv) {
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
 
-    bool sec_type = true;
+    bool sec_type = false;
 
     auto start = emp::clock_start();
-    setup_protocol(io, ios, threads, party, true);
-    cout << "setup rounds: " << io->rounds << endl;
-    aead_encrypt_test_offline(sec_type);
-    // aead_decrypt_test_offline(sec_type);
-    cout << "offline time: " << emp::time_from(start) << " us" << endl;
     auto comm = io->counter;
     auto rounds = io->rounds;
-    cout << "offline comm: " << comm << endl;
-    cout << "offline rounds: " << rounds << endl;
-    switch_to_online<NetIO>(party);
+    setup_protocol(io, ios, threads, party, true);
+    cout << "setup rounds: " << io->rounds << endl;
+    rounds = io->rounds;
+    // aead_encrypt_test_offline(sec_type);
+    aead_decrypt_test_offline(sec_type);
+    cout << "offline time: " << emp::time_from(start) << " us" << endl;
 
+    switch_to_online<NetIO>(party);
+    cout << "offline comm: " << io->counter - comm << endl;
+    cout << "offline rounds: " << io->rounds - rounds << endl;
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
 
+    comm = io->counter;
+    rounds = io->rounds;
     start = emp::clock_start();
-    aead_encrypt_test(io, cot, party, sec_type);
-    // aead_decrypt_test(io, cot, party, sec_type);
+    // aead_encrypt_test(io, cot, party, sec_type);
+    aead_decrypt_test(io, cot, party, sec_type);
     cout << "online time: " << dec << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io->counter - comm << endl;
     cout << "online rounds: " << io->rounds - rounds << endl;
