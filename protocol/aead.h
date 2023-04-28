@@ -117,13 +117,19 @@ class AEAD {
         }
     }
 
-    inline void set_nonce(const unsigned char* iv, size_t iv_len) {
+    inline void set_nonce(const unsigned char* iv,
+                          size_t iv_len,
+                          bool ENABLE_ONLINE_OFFLINE = true) {
         assert(iv_len == 12);
 
         unsigned char* riv = new unsigned char[iv_len];
         memcpy(riv, iv, iv_len);
         reverse(riv, riv + iv_len);
-        nonce = Integer(96, riv, PUBLIC);
+        if (ENABLE_ONLINE_OFFLINE)
+            nonce = Integer(96, riv, ALICE);
+        else
+            nonce = Integer(96, riv, PUBLIC);
+
         delete[] riv;
 
         Integer ONE = Integer(32, 1, PUBLIC);
@@ -574,26 +580,19 @@ class AEADOffline {
         }
     }
 
-    inline void set_nonce(const unsigned char* iv, size_t iv_len) {
-        assert(iv_len == 12);
-
-        unsigned char* riv = new unsigned char[iv_len];
-        memcpy(riv, iv, iv_len);
-        reverse(riv, riv + iv_len);
-        nonce = Integer(96, riv, PUBLIC);
-        delete[] riv;
+    inline void set_nonce() {
+        unsigned char riv[12];
+        memset(riv, 0x00, 12);
+        nonce = Integer(96, riv, ALICE);
 
         Integer ONE = Integer(32, 1, PUBLIC);
         concat(nonce, &ONE, 1);
     }
 
-    inline void encrypt(uint64_t msg_len,
-                        const unsigned char* iv,
-                        uint64_t iv_len,
-                        bool sec_type = false) {
+    inline void encrypt(uint64_t msg_len, bool sec_type = false) {
         size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
 
-        set_nonce(iv, iv_len);
+        set_nonce();
 
         Integer Z;
         gctr(Z, 1 + ctr_len);
@@ -606,12 +605,9 @@ class AEADOffline {
         }
     }
 
-    inline void decrypt(uint64_t ctxt_len,
-                        const unsigned char* iv,
-                        uint64_t iv_len,
-                        bool sec_type = false) {
+    inline void decrypt(uint64_t ctxt_len, bool sec_type = false) {
         size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
-        set_nonce(iv, iv_len);
+        set_nonce();
 
         Integer Z;
         gctr(Z, 1 + ctr_len);

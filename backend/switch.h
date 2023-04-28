@@ -75,7 +75,7 @@ void finalize_protocol() {
     delete gc_prot_buf;
     delete zk_circ_buf;
     delete zk_prot_buf;
-    delete offline_gc_circ_buf;
-    delete offline_gc_prot_buf;
+    // delete offline_gc_circ_buf;
+    // delete offline_gc_prot_buf;
 }
 #endif

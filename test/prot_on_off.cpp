@@ -25,7 +25,38 @@ const size_t RESPONSE_BYTE_LEN = 2 * 1024;
 
 const int threads = 1;
 
-void full_protocol_offline() {}
+void full_protocol_offline() {
+    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+
+    unsigned char* rc = new unsigned char[32];
+    unsigned char* rs = new unsigned char[32];
+
+    unsigned char* ufinc = new unsigned char[finished_msg_length];
+    unsigned char* ufins = new unsigned char[finished_msg_length];
+
+    unsigned char* tau_c = new unsigned char[32];
+    unsigned char* tau_s = new unsigned char[32];
+
+    unsigned char* cmsg = new unsigned char[QUERY_BYTE_LEN];
+    unsigned char* smsg = new unsigned char[RESPONSE_BYTE_LEN];
+
+    memset(rc, 0x11, 32);
+    memset(rs, 0x22, 32);
+    memset(tau_c, 0x33, 32);
+    memset(tau_s, 0x44, 32);
+    memset(cmsg, 0x55, QUERY_BYTE_LEN);
+    memset(smsg, 0x66, QUERY_BYTE_LEN);
+
+    unsigned char aad[] = {0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed,
+                           0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xab, 0xad, 0xda, 0xd2};
+
+    size_t aad_len = sizeof(aad);
+
+    HandShakeOffline* hs_offline = new HandShakeOffline(group);
+
+    hs_offline->compute_extended_master_key(rc, 32);
+    hs_offline->compute_expansion_keys(rc, 32, rs, 32);
+}
 template <typename IO>
 void full_protocol(IO* io, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);

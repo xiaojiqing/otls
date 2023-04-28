@@ -2,6 +2,7 @@
 #include "emp-tool/emp-tool.h"
 #include "cipher/utils.h"
 #include "backend/backend.h"
+#include "protocol/aead_izk.h"
 
 void aead_encrypt_test_offline(bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
@@ -16,13 +17,9 @@ void aead_encrypt_test_offline(bool sec_type = false) {
                            0x2f, 0xcf, 0x0e, 0x24, 0x49, 0xa6, 0xb5, 0x25, 0xb1, 0x6a,
                            0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57, 0xba, 0x63, 0x7b, 0x39};
     size_t msg_len = sizeof(msg);
-    unsigned char iv[] = {0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce,
-                          0xdb, 0xad, 0xde, 0xca, 0xf8, 0x88};
-
-    size_t iv_len = sizeof(iv);
 
     AEADOffline aead_offline(key);
-    aead_offline.encrypt(msg_len, iv, iv_len);
+    aead_offline.encrypt(msg_len);
 }
 
 void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = false) {
@@ -52,11 +49,11 @@ void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
     unsigned char tag[16];
 
     auto comm = io->counter;
-    AEAD<NetIO> aead(io, ot, key);
+    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key);
     cout << "constructor comm: " << io->counter - comm << endl;
 
     comm = io->counter;
-    aead.encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, iv, iv_len, party, sec_type);
+    aead->encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, iv, iv_len, party, sec_type);
     cout << "encrypt comm: " << io->counter - comm << endl;
     //aead.enc_finished_msg(io, ctxt, tag, msg, msg_len, aad, aad_len, party);
 
@@ -72,6 +69,21 @@ void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
     }
     cout << endl;
 
+    // Prove with IZK
+    auto start = emp::clock_start();
+    switch_to_zk();
+    Integer key_zk(128, keyc, ALICE);
+    AEAD_Proof<NetIO>* aead_proof = new AEAD_Proof<NetIO>(aead, key_zk, party);
+    Integer msg_zk, msg_z0;
+    aead_proof->prove_aead(msg_zk, msg_z0, ctxt, msg_len, iv, iv_len, sec_type);
+    if (sec_type) {
+        cout << msg_zk.reveal<string>() << endl;
+    }
+    sync_zk_gc<NetIO>();
+    switch_to_gc();
+    cout << "prove time: " << time_from(start) << endl;
+    delete aead;
+    delete aead_proof;
     delete[] ctxt;
 }
 
@@ -80,11 +92,6 @@ void aead_decrypt_test_offline(bool sec_type = false) {
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
     Integer key(128, keyc, ALICE);
-
-    unsigned char iv[] = {0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce,
-                          0xdb, 0xad, 0xde, 0xca, 0xf8, 0x88};
-
-    size_t iv_len = sizeof(iv);
 
     unsigned char ctxt[] = {0x42, 0x83, 0x1e, 0xc2, 0x21, 0x77, 0x74, 0x24, 0x4b, 0x72,
                             0x21, 0xb7, 0x84, 0xd0, 0xd4, 0x9c, 0xe3, 0xaa, 0x21, 0x2f,
@@ -95,7 +102,7 @@ void aead_decrypt_test_offline(bool sec_type = false) {
 
     size_t ctxt_len = sizeof(ctxt);
     AEADOffline aead_offline(key);
-    aead_offline.decrypt(ctxt_len, iv, iv_len);
+    aead_offline.decrypt(ctxt_len);
 }
 
 void aead_decrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = false) {
@@ -182,8 +189,8 @@ int main(int argc, char** argv) {
     setup_protocol(io, ios, threads, party, true);
     cout << "setup rounds: " << io->rounds << endl;
     rounds = io->rounds;
-    // aead_encrypt_test_offline(sec_type);
-    aead_decrypt_test_offline(sec_type);
+    aead_encrypt_test_offline(sec_type);
+    // aead_decrypt_test_offline(sec_type);
     cout << "offline time: " << emp::time_from(start) << " us" << endl;
 
     switch_to_online<NetIO>(party);
@@ -195,8 +202,8 @@ int main(int argc, char** argv) {
     comm = io->counter;
     rounds = io->rounds;
     start = emp::clock_start();
-    // aead_encrypt_test(io, cot, party, sec_type);
-    aead_decrypt_test(io, cot, party, sec_type);
+    aead_encrypt_test(io, cot, party, sec_type);
+    // aead_decrypt_test(io, cot, party, sec_type);
     cout << "online time: " << dec << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io->counter - comm << endl;
     cout << "online rounds: " << io->rounds - rounds << endl;

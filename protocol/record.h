@@ -51,13 +51,13 @@ class RecordOffline {
                         size_t msg_len,
                         const unsigned char* iv,
                         size_t iv_len) {
-        aead_c_offline->encrypt(msg_len, iv, iv_len, true);
+        aead_c_offline->encrypt(msg_len, true);
     }
     inline void decrypt(AEADOffline* aead_s_offline,
                         size_t ctxt_len,
                         const unsigned char* iv,
                         size_t iv_len) {
-        aead_s_offline->decrypt(ctxt_len, iv, iv_len, true);
+        aead_s_offline->decrypt(ctxt_len, true);
     }
 };
 

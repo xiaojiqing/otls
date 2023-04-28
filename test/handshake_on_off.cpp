@@ -6,6 +6,55 @@
 using namespace std;
 using namespace emp;
 
+void handshake_test_offline() {
+    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+
+    unsigned char* rc = new unsigned char[32];
+    unsigned char* rs = new unsigned char[32];
+
+    // unsigned char* ufinc = new unsigned char[finished_msg_length];
+    // unsigned char* ufins = new unsigned char[finished_msg_length];
+
+    unsigned char* tau_c = new unsigned char[32];
+    unsigned char* tau_s = new unsigned char[32];
+
+    //unsigned char* iv_oct = new unsigned char[24];
+
+    memset(rc, 0x11, 32);
+    memset(rs, 0x22, 32);
+    memset(tau_c, 0x33, 32);
+    memset(tau_s, 0x44, 32);
+
+    // unsigned char aad[] = {0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed,
+    //                        0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xab, 0xad, 0xda, 0xd2};
+
+    // size_t aad_len = sizeof(aad);
+
+    HandShakeOffline* hs_offline = new HandShakeOffline(group);
+    hs_offline->compute_extended_master_key(rc, 32);
+    hs_offline->compute_expansion_keys(rc, 32, rs, 32);
+    hs_offline->compute_client_finished_msg(client_finished_label,
+                                            client_finished_label_length, tau_c, 32);
+    hs_offline->compute_server_finished_msg(server_finished_label,
+                                            server_finished_label_length, tau_s, 32);
+
+    AEADOffline* aead_c_offline = new AEADOffline(hs_offline->client_write_key);
+    AEADOffline* aead_s_offline = new AEADOffline(hs_offline->server_write_key);
+
+    AEADOffline* aead_c_offline_server = new AEADOffline(hs_offline->client_write_key);
+    AEADOffline* aead_s_offline_server = new AEADOffline(hs_offline->server_write_key);
+
+    hs_offline->encrypt_client_finished_msg(aead_c_offline, 12);
+    aead_c_offline_server->decrypt(12);
+
+    aead_s_offline_server->encrypt(12);
+
+    hs_offline->decrypt_server_finished_msg(aead_s_offline, 12);
+
+    delete hs_offline;
+    delete aead_c_offline;
+    delete aead_s_offline;
+}
 template <typename IO>
 void handshake_test(IO* io, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
@@ -187,17 +236,33 @@ int main(int argc, char** argv) {
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
 
-    setup_protocol<NetIO>(io, ios, threads, party);
+    auto start = emp::clock_start();
+    auto comm = io->counter;
+    setup_protocol<NetIO>(io, ios, threads, party, true);
+    cout << "setup time: " << dec << emp::time_from(start) << endl;
+    cout << "setup comm: " << io->counter << endl;
 
+    comm = io->counter;
+    start = emp::clock_start();
+
+    handshake_test_offline();
+    switch_to_online<NetIO>(party);
+    cout << "offline time: " << dec << emp::time_from(start) << endl;
+    cout << "offline comm: " << io->counter - comm << endl;
+
+    comm = io->counter;
+
+    start = emp::clock_start();
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
     handshake_test<NetIO>(io, cot, party);
+    cout << "online time: " << dec << emp::time_from(start) << endl;
+    cout << "online comm: " << io->counter - comm << endl;
     finalize_protocol();
 
     bool cheat = CheatRecord::cheated();
     if (cheat)
         error("cheat!\n");
-
     delete io;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
