@@ -62,9 +62,9 @@ void full_protocol_offline() {
     delete aead_s_offline;
 }
 template <typename IO>
-void full_protocol(IO* io, COT<IO>* cot, int party) {
+void full_protocol(HandShake<IO>* hs, IO* io, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-    HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
+    //HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
 
     EC_POINT* V = EC_POINT_new(group);
     EC_POINT* Tc = EC_POINT_new(group);
@@ -102,7 +102,7 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     BIGNUM* full_pms = BN_new();
     unsigned char iv_c[12], iv_s[12];
 
-    hs->compute_pms_offline(party);
+    // hs->compute_pms_offline(party);
 
     auto start = emp::clock_start();
     if (party == BOB) {
@@ -187,7 +187,7 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     BN_free(full_pms);
     EC_POINT_free(Ts);
 
-    delete hs;
+    // delete hs;
     delete[] rc;
     delete[] rs;
     delete[] ufinc;
@@ -215,34 +215,38 @@ int main(int argc, char** argv) {
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
 
+    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+
     auto start = emp::clock_start();
     auto comm = io->counter;
-    // auto rounds = io->rounds;
+    auto rounds = io->rounds;
     setup_protocol<NetIO>(io, ios, threads, party, true);
     cout << "setup time: " << emp::time_from(start) << " us" << endl;
     cout << "setup comm: " << io->counter << endl;
-    // cout << "setup rounds: " << io->rounds << endl;
+    cout << "setup rounds: " << io->rounds << endl;
 
     start = clock_start();
     comm = io->counter;
-    // rounds = io->rounds;
+    rounds = io->rounds;
+
+    auto prot = (PADOParty<NetIO>*)(gc_prot_buf);
+    IKNP<NetIO>* cot = prot->ot;
+    HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
+    hs->compute_pms_offline(party);
 
     full_protocol_offline();
     switch_to_online<NetIO>(party);
     cout << "offline time: " << emp::time_from(start) << " us" << endl;
     cout << "offline comm: " << io->counter - comm << endl;
-    // cout << "offline rounds: " << io->rounds - rounds << endl;
+    cout << "offline rounds: " << io->rounds - rounds << endl;
 
     start = emp::clock_start();
     comm = io->counter;
-    // rounds = io->rounds;
-
-    auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
-    IKNP<NetIO>* cot = prot->ot;
-    full_protocol<NetIO>(io, cot, party);
+    rounds = io->rounds;
+    full_protocol<NetIO>(hs, io, cot, party);
     cout << "online time: " << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io->counter - comm << endl;
-    // cout << "onlie rounds: " << io->rounds - rounds << endl;
+    cout << "onlie rounds: " << io->rounds - rounds << endl;
 
     cout << "gc AND gates: " << dec << gc_circ_buf->num_and() << endl;
     cout << "zk AND gates: " << dec << zk_circ_buf->num_and() << endl;
@@ -251,40 +255,6 @@ int main(int argc, char** argv) {
     bool cheat = CheatRecord::cheated();
     if (cheat)
         error("cheat!\n");
-
-        // int port, party;
-        // parse_party_and_port(argv, &party, &port);
-
-        // EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-
-        // NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-
-        // // GC
-        // hs_query_resp_gc(io, group, party);
-
-        // BoolIO<NetIO>* ios[threads];
-        // for (int i = 0; i < threads; ++i)
-        //     ios[i] = new BoolIO<NetIO>(io, party == ALICE);
-
-        // vector<block> out;
-
-        // // IZK
-        // hs_query_resp_izk(ios, group, out, party);
-        // for (int i = 0; i < threads; ++i) {
-        //     delete ios[i]->io;
-        //     delete ios[i];
-        // }
-
-        // // vector<block> out(QUERY_BYTE_LEN * 8 + RESPONSE_BYTE_LEN * 8);
-        // // for (int i = 0; i < out.size(); i++)
-        // //     out[i] = zero_block;
-
-        // NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-
-        // // Com conversion
-        // com_conv(io1, group, out, party);
-
-        // EC_GROUP_free(group);
 
 #if defined(__linux__)
     struct rusage rusage;
