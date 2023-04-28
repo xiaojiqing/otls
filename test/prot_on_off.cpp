@@ -232,9 +232,10 @@ int main(int argc, char** argv) {
     auto prot = (PADOParty<NetIO>*)(gc_prot_buf);
     IKNP<NetIO>* cot = prot->ot;
     HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
-    hs->compute_pms_offline(party);
 
     full_protocol_offline();
+    hs->compute_pms_offline(party);
+
     switch_to_online<NetIO>(party);
     cout << "offline time: " << emp::time_from(start) << " us" << endl;
     cout << "offline comm: " << io->counter - comm << endl;
