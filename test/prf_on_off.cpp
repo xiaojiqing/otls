@@ -94,7 +94,10 @@ int main(int argc, char** argv) {
     start = emp::clock_start();
     zk_gc_prf_test(party, true);
     cout << "online time: " << emp::time_from(start) << " us" << endl;
-    cout << "online comm: " << io->counter - comm << endl;
+    if (party == ALICE)
+        cout << "ALICE online comm: " << io->counter - comm << endl;
+    else
+        cout << "BOB online comm: " << io->counter - comm << endl;
 
     bool cheat = CheatRecord::cheated();
     if (cheat)
