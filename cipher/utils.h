@@ -14,16 +14,20 @@ using std::vector;
 // static string circuit_file_location =
 //   macro_xstr(EMP_CIRCUIT_PATH) + string("bristol_fashion/");
 // static BristolFashion aes = BristolFashion((circuit_file_location + "aes_128.txt").c_str());
-
-static string aes_ks_file = "cipher/circuit_files/aes128_ks.txt";
-static BristolFormat aes_ks = BristolFormat(aes_ks_file.c_str());
-
-static string aes_enc_file = "cipher/circuit_files/aes128_with_ks.txt";
-static BristolFormat aes_enc_ks = BristolFormat(aes_enc_file.c_str());
+#ifndef THREADING
+extern BristolFormat *aes_ks;
+extern BristolFormat *aes_enc_ks;
+#else
+extern __thread BristolFormat *aes_ks;
+extern __thread BristolFormat *aes_enc_ks;
+#endif
 
 inline Integer rrot(const Integer& rhs, int sht) {
     return (rhs >> sht) ^ (rhs << (rhs.size() - sht));
 }
+
+void init_files();
+void uninit_files();
 
 inline uint32_t rrot(const uint32_t& rhs, int sht) {
     return (rhs >> sht) | (rhs << (32 - sht));
@@ -229,13 +233,13 @@ inline block ghash(block h, block* x, size_t m) {
 
 inline Integer computeKS(Integer& key) {
     Integer o(1408, 0, PUBLIC);
-    aes_ks.compute(o.bits.data(), key.bits.data(), nullptr);
+    aes_ks->compute(o.bits.data(), key.bits.data(), nullptr);
     return o;
 }
 
 inline Integer computeAES_KS(Integer& key, Integer& msg) {
     Integer o(128, 0, PUBLIC);
-    aes_enc_ks.compute(o.bits.data(), key.bits.data(), msg.bits.data());
+    aes_enc_ks->compute(o.bits.data(), key.bits.data(), msg.bits.data());
     reverse(o.bits.begin(), o.bits.end());
     return o;
 }
