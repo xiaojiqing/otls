@@ -40,7 +40,8 @@ class OnlinePADOGen : public PADOParty<IO> {
     void reveal(bool* b, int party, const block* label, int length) {
         for (int i = 0; i < length; ++i) {
             bool lsb = getLSB(label[i]);
-            if (party == BOB or party == PUBLIC) {
+            //if (party == BOB or party == PUBLIC) {
+            if (party == BOB) {
                 this->io->send_data(&lsb, 1);
                 b[i] = false;
             } else if (party == ALICE) {

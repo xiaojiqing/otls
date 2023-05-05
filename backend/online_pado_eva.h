@@ -7,6 +7,8 @@ class OnlinePADOEva : public PADOParty<IO> {
    public:
     OnlineHalfGateEva<IO>* gc;
     PRG prg;
+    vector<bool> pub_values;
+    uint64_t reveal_counter = 0;
     OnlinePADOEva(IO* io, OnlineHalfGateEva<IO>* gc, IKNP<IO>* in_ot = nullptr)
         : PADOParty<IO>(io, BOB, in_ot) {
         this->gc = gc;
@@ -26,12 +28,15 @@ class OnlinePADOEva : public PADOParty<IO> {
     void reveal(bool* b, int party, const block* label, int length) {
         for (int i = 0; i < length; ++i) {
             bool lsb = getLSB(label[i]), tmp;
-            if (party == BOB or party == PUBLIC) {
+            //if (party == BOB or party == PUBLIC) {
+            if (party == BOB) {
                 this->io->recv_data(&tmp, 1);
                 b[i] = (tmp != lsb);
             } else if (party == ALICE) {
                 this->io->send_data(&lsb, 1);
                 b[i] = false;
+            } else if (party == PUBLIC) {
+                b[i] = (pub_values[reveal_counter++] != lsb);
             }
         }
         if (party == PUBLIC)

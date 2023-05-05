@@ -179,10 +179,8 @@ class AEAD {
         size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
 
         set_nonce(iv, iv_len);
-
         Integer Z;
         gctr(Z, 1 + ctr_len);
-
         Integer Z0;
         Z0.bits.insert(Z0.bits.end(), Z.bits.end() - 128, Z.bits.end());
         block z0 = integer_to_block(Z0);
@@ -200,7 +198,6 @@ class AEAD {
         Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
 
         unsigned char* z = new unsigned char[msg_len];
-
         if (!sec_type) {
             // message is public
             Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
@@ -280,7 +277,6 @@ class AEAD {
 
         block out = zero_block;
         obv_ghash(out, xblk, (8 * len) / 128, party);
-
         out ^= z0;
 
         if (party == BOB) {
@@ -299,7 +295,6 @@ class AEAD {
 
         memcpy(tag, (unsigned char*)&out, 16);
         reverse(tag, tag + 16);
-
         delete[] x;
     }
 
@@ -550,6 +545,7 @@ class AEADOffline {
         expanded_key = computeKS(key);
         Integer H = computeH();
     }
+    ~AEADOffline() {}
 
     inline Integer computeH() {
         Integer in(128, 0, PUBLIC);
@@ -590,6 +586,7 @@ class AEADOffline {
     }
 
     inline void encrypt(uint64_t msg_len, bool sec_type = false) {
+        size_t u = 128 * ((msg_len * 8 + 128 - 1) / 128) - msg_len * 8;
         size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
 
         set_nonce();
@@ -597,25 +594,34 @@ class AEADOffline {
         Integer Z;
         gctr(Z, 1 + ctr_len);
 
+        Z.bits.erase(Z.bits.end() - 128, Z.bits.end());
+        Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
+
         if (!sec_type) {
             // message is public
-            // unsigned char* z = new unsigned char[msg_len];
-            // Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
-            // delete[] z;
+            unsigned char* z = new unsigned char[msg_len];
+            memset(z, 0x00, msg_len);
+            Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
+            delete[] z;
         }
     }
 
     inline void decrypt(uint64_t ctxt_len, bool sec_type = false) {
+        size_t u = 128 * ((ctxt_len * 8 + 128 - 1) / 128) - ctxt_len * 8;
         size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
         set_nonce();
 
         Integer Z;
         gctr(Z, 1 + ctr_len);
 
+        Z.bits.erase(Z.bits.end() - 128, Z.bits.end());
+        Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
+
         if (!sec_type) {
-            // unsigned char* z = new unsigned char[ctxt_len];
-            // Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
-            // delete[] z;
+            unsigned char* z = new unsigned char[ctxt_len];
+            memset(z, 0x00, ctxt_len);
+            Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
+            delete[] z;
         }
     }
 };

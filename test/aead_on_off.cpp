@@ -9,7 +9,6 @@ void aead_encrypt_test_offline(bool sec_type = false) {
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
     Integer key(128, keyc, ALICE);
-
     unsigned char msg[] = {0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5, 0xa5, 0x59,
                            0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a, 0x86, 0xa7, 0xa9, 0x53,
                            0x15, 0x34, 0xf7, 0xda, 0x2e, 0x4c, 0x30, 0x3d, 0x8a, 0x31,
@@ -19,6 +18,7 @@ void aead_encrypt_test_offline(bool sec_type = false) {
     size_t msg_len = sizeof(msg);
 
     AEADOffline aead_offline(key);
+
     aead_offline.encrypt(msg_len);
 }
 
@@ -149,9 +149,9 @@ void aead_decrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
                            0x94, 0xfa, 0xe9, 0x5a, 0xe7, 0x12, 0x1a, 0x47};
 
     auto start = emp::clock_start();
-    AEAD<NetIO> aead(io, ot, key);
+    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key);
     bool res =
-      aead.decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
+      aead->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
     if (party == ALICE) {
@@ -170,6 +170,22 @@ void aead_decrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
         }
         cout << endl;
     }
+
+    // Prove with IZK
+    start = emp::clock_start();
+    switch_to_zk();
+    Integer key_zk(128, keyc, ALICE);
+    AEAD_Proof<NetIO>* aead_proof = new AEAD_Proof<NetIO>(aead, key_zk, party);
+    Integer msg_zk, msg_z0;
+    aead_proof->prove_aead(msg_zk, msg_z0, ctxt, msg_len, iv, iv_len, sec_type);
+    if (sec_type) {
+        cout << msg_zk.reveal<string>() << endl;
+    }
+    sync_zk_gc<NetIO>();
+    switch_to_gc();
+    cout << "prove time: " << time_from(start) << endl;
+    delete aead;
+    delete aead_proof;
 }
 
 int threads = 1;
@@ -189,8 +205,8 @@ int main(int argc, char** argv) {
     setup_protocol(io, ios, threads, party, true);
     // cout << "setup rounds: " << io->rounds << endl;
     // rounds = io->rounds;
-    aead_encrypt_test_offline(sec_type);
-    // aead_decrypt_test_offline(sec_type);
+    // aead_encrypt_test_offline(sec_type);
+    aead_decrypt_test_offline(sec_type);
     cout << "offline time: " << emp::time_from(start) << " us" << endl;
 
     switch_to_online<NetIO>(party);
@@ -202,8 +218,8 @@ int main(int argc, char** argv) {
     comm = io->counter;
     // rounds = io->rounds;
     start = emp::clock_start();
-    aead_encrypt_test(io, cot, party, sec_type);
-    // aead_decrypt_test(io, cot, party, sec_type);
+    // aead_encrypt_test(io, cot, party, sec_type);
+    aead_decrypt_test(io, cot, party, sec_type);
     cout << "online time: " << dec << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io->counter - comm << endl;
     // cout << "online rounds: " << io->rounds - rounds << endl;

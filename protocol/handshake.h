@@ -667,8 +667,8 @@ class HandShakeOffline {
         client_write_key.bits.insert(client_write_key.bits.begin(),
                                      key.bits.begin() + 2 * iv_length * 8 + key_length * 8,
                                      key.bits.begin() + 2 * (iv_length * 8 + key_length * 8));
-        // unsigned char iv_oct[iv_length * 2];
-        // iv.reveal<unsigned char>((unsigned char*)iv_oct, PUBLIC);
+        unsigned char iv_oct[iv_length * 2];
+        iv.reveal<unsigned char>((unsigned char*)iv_oct, PUBLIC);
         // reverse(iv_oct, iv_oct + iv_length * 2);
         // memcpy(client_write_iv, iv_oct, iv_length);
         // memcpy(server_write_iv, iv_oct + iv_length, iv_length);
@@ -683,7 +683,7 @@ class HandShakeOffline {
         Integer ufin_int;
         prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label, label_len,
                         tau, tau_len, true, true);
-        // ufin_int.reveal<unsigned char>((unsigned char*)client_ufin, PUBLIC);
+        ufin_int.reveal<unsigned char>((unsigned char*)client_ufin, PUBLIC);
     }
 
     inline void compute_server_finished_msg(const unsigned char* label,
@@ -693,7 +693,7 @@ class HandShakeOffline {
         Integer ufin_int;
         prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label, label_len,
                         tau, tau_len, true, true);
-        // ufin_int.reveal<unsigned char>((unsigned char*)server_ufin, PUBLIC);
+        ufin_int.reveal<unsigned char>((unsigned char*)server_ufin, PUBLIC);
     }
 
     inline void encrypt_client_finished_msg(AEADOffline* aead_c_offline, size_t ufinc_len) {

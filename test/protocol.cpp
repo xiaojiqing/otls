@@ -442,7 +442,7 @@ int main(int argc, char** argv) {
     cout << "setup time: " << emp::time_from(start) << " us" << endl;
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
-    start = emp::clock_start();
+    //start = emp::clock_start();
     full_protocol<NetIO>(io, cot, party);
     cout << "total time: " << emp::time_from(start) << " us" << endl;
 
