@@ -389,8 +389,8 @@ int main(int argc, char** argv) {
     // finalize_backend();
 
     setup_protocol(io, ios, threads, party);
-    zk_gc_prf_test(party);
-    //opt_prf_test();
+    //zk_gc_prf_test(party);
+    opt_prf_test();
     finalize_protocol();
 
     bool cheat = CheatRecord::cheated();

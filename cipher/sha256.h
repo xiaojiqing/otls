@@ -44,6 +44,8 @@ class SHA256 {
 
     vector<Integer> zk_iv_in_hashes;
 
+    // This is optimized to reduce rounds
+    Integer iv_in_hash[DIGLEN];
     size_t pos = -1;
     size_t zpos = -1;
 
@@ -383,6 +385,53 @@ class SHA256 {
         delete[] data;
     }
 
+    void opt_rounds_update(Integer* dig,
+                           const Integer padded_input,
+                           bool reuse_in_hash_flag = false) {
+        uint64_t padded_len = padded_input.size();
+        assert(padded_len % CHUNKLEN == 0);
+        Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
+        vector<Integer> input_data;
+        for (int i = padded_input.size() - 1; i >= 0; --i) {
+            tmp.bits[i % WORDLEN] = padded_input[i];
+
+            if (i % WORDLEN == 0) {
+                input_data.push_back(tmp);
+            }
+        }
+        uint64_t num_chunk = padded_len / CHUNKLEN;
+        for (int i = 0; i < VALLEN; i++)
+            dig[i] = sha256_h[i];
+
+        Integer* tmp_block = new Integer[CHUNKLEN / WORDLEN]; //CHUNKLEN/WORDLEN=16
+        for (int j = 0; j < CHUNKLEN / WORDLEN; j++) {
+            tmp_block[j] = input_data[j];
+        }
+
+        if (reuse_in_hash_flag == true) {
+            if (gc_in_open_flag == false) {
+                chunk_compress(dig, tmp_block);
+
+                for (int i = 0; i < DIGLEN; i++)
+                    iv_in_hash[i] = dig[i];
+                gc_in_open_flag = true;
+            } else {
+                for (int i = 0; i < DIGLEN; i++)
+                    dig[i] = iv_in_hash[i];
+            }
+        } else {
+            chunk_compress(dig, tmp_block);
+        }
+
+        for (uint64_t i = 1; i < num_chunk; i++) {
+            for (int j = 0; j < CHUNKLEN / WORDLEN; j++) {
+                tmp_block[j] = input_data[j + i * CHUNKLEN / WORDLEN];
+            }
+            chunk_compress(dig, tmp_block);
+        }
+        delete[] tmp_block;
+    }
+
     void chunk_compress(Integer* input_h, Integer* chunk) {
         compression_calls_num++;
         Integer* w = new Integer[KLEN];
@@ -496,6 +545,14 @@ class SHA256 {
                            bool reuse_in_hash_flag = false,
                            bool zk_flag = false) {
         opt_update(res, sec_input, pub_input, pub_len, reuse_in_hash_flag, zk_flag);
+    }
+
+    inline void opt_rounds_digest(Integer* res,
+                                  Integer input,
+                                  bool reuse_in_hash_flag = false) {
+        Integer padded_input;
+        padding(padded_input, input);
+        opt_rounds_update(res, padded_input, reuse_in_hash_flag);
     }
 
     inline size_t compression_calls() { return compression_calls_num; }
