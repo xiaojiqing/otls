@@ -252,7 +252,7 @@ int main(int argc, char** argv) {
     start = clock_start();
     comm = io->counter;
     rounds = io->rounds;
-    bool ENABLE_ROUNDS_OPT = true;
+    bool ENABLE_ROUNDS_OPT = false;
     auto prot = (PADOParty<NetIO>*)(gc_prot_buf);
     IKNP<NetIO>* cot = prot->ot;
     HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group, ENABLE_ROUNDS_OPT);

@@ -6,7 +6,7 @@
 using namespace std;
 using namespace emp;
 
-void handshake_test_offline() {
+void handshake_test_offline(bool ENABLE_ROUNDS_OPT = false) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
     unsigned char* rc = new unsigned char[32];
@@ -30,7 +30,7 @@ void handshake_test_offline() {
 
     // size_t aad_len = sizeof(aad);
 
-    HandShakeOffline* hs_offline = new HandShakeOffline(group);
+    HandShakeOffline* hs_offline = new HandShakeOffline(group, ENABLE_ROUNDS_OPT);
     hs_offline->compute_extended_master_key(rc, 32);
     hs_offline->compute_expansion_keys(rc, 32, rs, 32);
     hs_offline->compute_client_finished_msg(client_finished_label,
@@ -56,9 +56,9 @@ void handshake_test_offline() {
     delete aead_s_offline;
 }
 template <typename IO>
-void handshake_test(IO* io, COT<IO>* cot, int party) {
+void handshake_test(IO* io, COT<IO>* cot, int party, bool ENABLE_ROUNDS_OPT = false) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-    HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
+    HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group, ENABLE_ROUNDS_OPT);
 
     EC_POINT* V = EC_POINT_new(group);
     EC_POINT* Tc = EC_POINT_new(group);
@@ -244,8 +244,8 @@ int main(int argc, char** argv) {
 
     comm = io->counter;
     start = emp::clock_start();
-
-    handshake_test_offline();
+    bool ENABLE_ROUNDS_OPT = true;
+    handshake_test_offline(ENABLE_ROUNDS_OPT);
     switch_to_online<NetIO>(party);
     cout << "offline time: " << dec << emp::time_from(start) << endl;
     cout << "offline comm: " << io->counter - comm << endl;
@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
     start = emp::clock_start();
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
-    handshake_test<NetIO>(io, cot, party);
+    handshake_test<NetIO>(io, cot, party, ENABLE_ROUNDS_OPT);
     cout << "online time: " << dec << emp::time_from(start) << endl;
     cout << "online comm: " << io->counter - comm << endl;
     finalize_protocol();
