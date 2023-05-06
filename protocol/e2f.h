@@ -8,6 +8,7 @@ template <typename IO>
 class E2F {
    public:
     IO* io;
+    IO* io1;
     OLE<IO>* ole = nullptr;
     size_t bit_length;
 
@@ -19,8 +20,10 @@ class E2F {
     BIGNUM* r;
     BIGNUM* r2;
 
-    E2F(IO* io, COT<IO>* ot, BIGNUM* q2, size_t bit_length) : io(io), bit_length(bit_length) {
+    E2F(IO* io, IO* io1, COT<IO>* ot, BIGNUM* q2, size_t bit_length)
+        : io(io), bit_length(bit_length) {
         ole = new OLE<IO>(io, ot, q2, bit_length);
+        this->io1 = io1;
         a = BN_new();
         b = BN_new();
         c = BN_new();
@@ -47,11 +50,11 @@ class E2F {
         BIGNUM* tmp = BN_new();
         if (party == ALICE) {
             send_bn(io, value);
-            recv_bn(io, tmp);
+            recv_bn(io1, tmp);
             BN_mod_add(value, value, tmp, ole->q, ole->ctx);
         } else {
             recv_bn(io, tmp);
-            send_bn(io, value);
+            send_bn(io1, value);
             BN_mod_add(value, value, tmp, ole->q, ole->ctx);
         }
         BN_free(tmp);
@@ -119,11 +122,11 @@ class E2F {
             BN_copy(xbma, x);
             BN_copy(ybma, y);
         }
-
+        std::cout << "here" << endl;
         BIGNUM* w = BN_new();
         BN_mod_sub(w, xbma, b, ole->q, ole->ctx); //epsilon1 = open(xb-xa-b)
         open(w, party);                           //open epsilon1
-
+        std::cout << "here 1" << endl;
         BN_mod_mul(w, w, a, ole->q, ole->ctx);
         BN_mod_add(w, w, c, ole->q, ole->ctx);
 
@@ -142,8 +145,8 @@ class E2F {
         BN_mod_inverse(w, w, ole->q, ole->ctx);
         BN_mod_mul(eta, w, eta, ole->q, ole->ctx);
 
-        BN_mod_sub(eta, eta, r, ole->q, ole->ctx); //epsilon3 = open(eta-r)
-        open(eta, party);                          //open epsilon3
+        BN_mod_sub(eta, eta, r, ole->q, ole->ctx);   //epsilon3 = open(eta-r)
+        open(eta, party);                            //open epsilon3
 
         BN_mod_mul(out, eta, r, ole->q, ole->ctx);   // epsilon3*[r]
         BN_mod_add(out, out, out, ole->q, ole->ctx); // 2*epsilon3*[r]
