@@ -60,8 +60,8 @@ class HandShake {
     unsigned char client_write_iv[iv_length];
     unsigned char server_write_iv[iv_length];
     //unsigned char iv_oct[iv_length * 2];
-
-    HandShake(IO* io, COT<IO>* ot, EC_GROUP* group) : io(io) {
+    bool ENABLE_ROUNDS_OPT = false;
+    HandShake(IO* io, COT<IO>* ot, EC_GROUP* group, bool ENABLE_ROUNDS_OPT = false) : io(io) {
         ctx = BN_CTX_new();
         this->group = group;
         q = BN_new();
@@ -72,6 +72,7 @@ class HandShake {
         Ts = EC_POINT_new(this->group);
         EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
         e2f = new E2F<IO>(io, ot, q, BN_num_bits(q));
+        this->ENABLE_ROUNDS_OPT = ENABLE_ROUNDS_OPT;
     }
     ~HandShake() {
         BN_CTX_free(ctx);
@@ -206,11 +207,14 @@ class HandShake {
         memcpy(seed + rc_len, rs, rs_len);
 
         prf.init(hmac, pmsbits);
-        // prf.opt_compute(hmac, master_key, master_key_length * 8, pmsbits, master_key_label,
-        //                 master_key_label_length, seed, seed_len, true, true);
-        prf.opt_rounds_compute(hmac, master_key, master_key_length * 8, pmsbits,
-                               master_key_label, master_key_label_length, seed, seed_len, true,
-                               true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, master_key, master_key_length * 8, pmsbits, master_key_label,
+                            master_key_label_length, seed, seed_len, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, master_key, master_key_length * 8, pmsbits,
+                                   master_key_label, master_key_label_length, seed, seed_len,
+                                   true, true);
+        }
 
         delete[] seed;
         delete[] buf;
@@ -239,12 +243,15 @@ class HandShake {
         addmod(pmsbits, pmsa, pmsb, q);
 
         prf.init(hmac, pmsbits);
-        // prf.opt_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
-        //                 extended_master_key_label, extended_master_key_label_length,
-        //                 session_hash, hash_len, true, true);
-        prf.opt_rounds_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
-                               extended_master_key_label, extended_master_key_label_length,
-                               session_hash, hash_len, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
+                            extended_master_key_label, extended_master_key_label_length,
+                            session_hash, hash_len, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
+                                   extended_master_key_label, extended_master_key_label_length,
+                                   session_hash, hash_len, true, true);
+        }
         delete[] buf;
     }
 
@@ -259,11 +266,15 @@ class HandShake {
 
         Integer key;
         prf.init(hmac, master_key);
-        // prf.opt_compute(hmac, key, expansion_key_length * 8, master_key, key_expansion_label,
-        //                 key_expansion_label_length, seed, seed_len, true, true);
-        prf.opt_rounds_compute(hmac, key, expansion_key_length * 8, master_key,
-                               key_expansion_label, key_expansion_label_length, seed, seed_len,
-                               true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, key, expansion_key_length * 8, master_key,
+                            key_expansion_label, key_expansion_label_length, seed, seed_len,
+                            true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, key, expansion_key_length * 8, master_key,
+                                   key_expansion_label, key_expansion_label_length, seed,
+                                   seed_len, true, true);
+        }
         Integer iv;
         iv.bits.insert(iv.bits.begin(), key.bits.begin(),
                        key.bits.begin() + iv_length * 8 * 2);
@@ -352,10 +363,13 @@ class HandShake {
                                             const unsigned char* tau,
                                             size_t tau_len) {
         Integer ufin_int;
-        // prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label, label_len,
-        //                 tau, tau_len, true, true);
-        prf.opt_rounds_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
-                               label_len, tau, tau_len, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
+                            label_len, tau, tau_len, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
+                                   label_len, tau, tau_len, true, true);
+        }
         ufin_int.reveal<unsigned char>((unsigned char*)client_ufin, PUBLIC);
     }
 
@@ -364,10 +378,13 @@ class HandShake {
                                             const unsigned char* tau,
                                             size_t tau_len) {
         Integer ufin_int;
-        // prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label, label_len,
-        //                 tau, tau_len, true, true);
-        prf.opt_rounds_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
-                               label_len, tau, tau_len, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
+                            label_len, tau, tau_len, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
+                                   label_len, tau, tau_len, true, true);
+        }
         ufin_int.reveal<unsigned char>((unsigned char*)server_ufin, PUBLIC);
     }
 
@@ -468,8 +485,13 @@ class HandShake {
         memcpy(seed + rc_len, rs, rs_len);
 
         prf.init(hmac, pmsbits);
-        prf.opt_compute(hmac, ms, master_key_length * 8, pmsbits, master_key_label,
-                        master_key_label_length, seed, seed_len, true, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, ms, master_key_length * 8, pmsbits, master_key_label,
+                            master_key_label_length, seed, seed_len, true, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, ms, master_key_length * 8, pmsbits, master_key_label,
+                                   master_key_label_length, seed, seed_len, true, true, true);
+        }
 
         delete[] seed;
         delete[] buf;
@@ -495,9 +517,15 @@ class HandShake {
         addmod(pmsbits, z1, zk_pms, q);
 
         prf.init(hmac, pmsbits);
-        prf.opt_compute(hmac, ms, extended_master_key_length * 8, pmsbits,
-                        extended_master_key_label, extended_master_key_label_length,
-                        session_hash, hash_len, true, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, ms, extended_master_key_length * 8, pmsbits,
+                            extended_master_key_label, extended_master_key_label_length,
+                            session_hash, hash_len, true, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, ms, extended_master_key_length * 8, pmsbits,
+                                   extended_master_key_label, extended_master_key_label_length,
+                                   session_hash, hash_len, true, true, true);
+        }
 
         delete[] buf;
     }
@@ -517,8 +545,14 @@ class HandShake {
 
         Integer key;
         prf.init(hmac, ms);
-        prf.opt_compute(hmac, key, expansion_key_length * 8, ms, key_expansion_label,
-                        key_expansion_label_length, seed, seed_len, true, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, key, expansion_key_length * 8, ms, key_expansion_label,
+                            key_expansion_label_length, seed, seed_len, true, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, key, expansion_key_length * 8, ms,
+                                   key_expansion_label, key_expansion_label_length, seed,
+                                   seed_len, true, true, true);
+        }
         Integer iv;
         iv.bits.insert(iv.bits.begin(), key.bits.begin(),
                        key.bits.begin() + iv_length * 8 * 2);
@@ -550,8 +584,13 @@ class HandShake {
                                           size_t tau_len,
                                           int party) {
         Integer ufin;
-        prf.opt_compute(hmac, ufin, finished_msg_length * 8, ms, label, label_len, tau,
-                        tau_len, true, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, ufin, finished_msg_length * 8, ms, label, label_len, tau,
+                            tau_len, true, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, ufin, finished_msg_length * 8, ms, label, label_len,
+                                   tau, tau_len, true, true, true);
+        }
         check_zero<IO>(ufin, client_ufin, finished_msg_length, party);
     }
 
@@ -562,8 +601,13 @@ class HandShake {
                                           size_t tau_len,
                                           int party) {
         Integer ufin;
-        prf.opt_compute(hmac, ufin, finished_msg_length * 8, ms, label, label_len, tau,
-                        tau_len, true, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, ufin, finished_msg_length * 8, ms, label, label_len, tau,
+                            tau_len, true, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, ufin, finished_msg_length * 8, ms, label, label_len,
+                                   tau, tau_len, true, true, true);
+        }
         check_zero<IO>(ufin, server_ufin, finished_msg_length, party);
     }
 
@@ -580,7 +624,9 @@ class HandShake {
 
     inline void handshake_check(int party) {
         prf.prf_check<IO>(party);
+        //   if (!ENABLE_ROUNDS_OPT) {
         hmac.sha256_check<IO>(party);
+        //  }
     }
 };
 
@@ -600,10 +646,12 @@ class HandShakeOffline {
     unsigned char client_write_iv[iv_length];
     unsigned char server_write_iv[iv_length];
 
-    HandShakeOffline(EC_GROUP* group) {
+    bool ENABLE_ROUNDS_OPT = false;
+    HandShakeOffline(EC_GROUP* group, bool ENABLE_ROUNDS_OPT = false) {
         q = BN_new();
         ctx = BN_CTX_new();
         EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
+        this->ENABLE_ROUNDS_OPT = ENABLE_ROUNDS_OPT;
     }
     ~HandShakeOffline() {
         BN_CTX_free(ctx);
@@ -630,8 +678,14 @@ class HandShakeOffline {
         memcpy(seed + rc_len, rs, rs_len);
 
         prf.init(hmac, pmsbits);
-        prf.opt_compute(hmac, master_key, master_key_length * 8, pmsbits, master_key_label,
-                        master_key_label_length, seed, seed_len, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, master_key, master_key_length * 8, pmsbits, master_key_label,
+                            master_key_label_length, seed, seed_len, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, master_key, master_key_length * 8, pmsbits,
+                                   master_key_label, master_key_label_length, seed, seed_len,
+                                   true, true);
+        }
 
         delete[] seed;
         delete[] buf;
@@ -650,12 +704,15 @@ class HandShakeOffline {
         addmod(pmsbits, pmsa, pmsb, q);
 
         prf.init(hmac, pmsbits);
-        // prf.opt_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
-        //                 extended_master_key_label, extended_master_key_label_length,
-        //                 session_hash, hash_len, true, true);
-        prf.opt_rounds_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
-                               extended_master_key_label, extended_master_key_label_length,
-                               session_hash, hash_len, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
+                            extended_master_key_label, extended_master_key_label_length,
+                            session_hash, hash_len, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, master_key, extended_master_key_length * 8, pmsbits,
+                                   extended_master_key_label, extended_master_key_label_length,
+                                   session_hash, hash_len, true, true);
+        }
         delete[] buf;
     }
 
@@ -670,11 +727,15 @@ class HandShakeOffline {
 
         Integer key;
         prf.init(hmac, master_key);
-        // prf.opt_compute(hmac, key, expansion_key_length * 8, master_key, key_expansion_label,
-        //                 key_expansion_label_length, seed, seed_len, true, true);
-        prf.opt_rounds_compute(hmac, key, expansion_key_length * 8, master_key,
-                               key_expansion_label, key_expansion_label_length, seed, seed_len,
-                               true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, key, expansion_key_length * 8, master_key,
+                            key_expansion_label, key_expansion_label_length, seed, seed_len,
+                            true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, key, expansion_key_length * 8, master_key,
+                                   key_expansion_label, key_expansion_label_length, seed,
+                                   seed_len, true, true);
+        }
         Integer iv;
         iv.bits.insert(iv.bits.begin(), key.bits.begin(),
                        key.bits.begin() + iv_length * 8 * 2);
@@ -698,10 +759,13 @@ class HandShakeOffline {
                                             const unsigned char* tau,
                                             size_t tau_len) {
         Integer ufin_int;
-        // prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label, label_len,
-        //                 tau, tau_len, true, true);
-        prf.opt_rounds_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
-                               label_len, tau, tau_len, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
+                            label_len, tau, tau_len, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
+                                   label_len, tau, tau_len, true, true);
+        }
         ufin_int.reveal<unsigned char>((unsigned char*)client_ufin, PUBLIC);
     }
 
@@ -710,10 +774,13 @@ class HandShakeOffline {
                                             const unsigned char* tau,
                                             size_t tau_len) {
         Integer ufin_int;
-        // prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label, label_len,
-        //                 tau, tau_len, true, true);
-        prf.opt_rounds_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
-                               label_len, tau, tau_len, true, true);
+        if (!ENABLE_ROUNDS_OPT) {
+            prf.opt_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
+                            label_len, tau, tau_len, true, true);
+        } else {
+            prf.opt_rounds_compute(hmac, ufin_int, finished_msg_length * 8, master_key, label,
+                                   label_len, tau, tau_len, true, true);
+        }
         ufin_int.reveal<unsigned char>((unsigned char*)server_ufin, PUBLIC);
     }
 

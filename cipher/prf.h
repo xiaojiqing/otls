@@ -150,7 +150,7 @@ class PRF {
         unsigned char* rseed = new unsigned char[seedlen];
         memcpy(rseed, seed, seedlen);
         reverse(rseed, rseed + seedlen);
-        A[0] = Integer(seedlen, rseed, PUBLIC);
+        A[0] = Integer(8 * seedlen, rseed, PUBLIC);
 
         uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
 

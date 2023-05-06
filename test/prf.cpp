@@ -337,8 +337,8 @@ void zk_gc_prf_test(int party) {
     PRF prf;
     HMAC_SHA256 hmac;
     prf.init(hmac, secret);
-    prf.opt_compute(hmac, res, 800, secret, label, label_u.size(), seed, seed_u.size(), true,
-                    true);
+    prf.opt_rounds_compute(hmac, res, 800, secret, label, label_u.size(), seed, seed_u.size(),
+                           true, true);
 
     //assert(output == res);
     if ((output == res).reveal<bool>(PUBLIC)) {
@@ -351,8 +351,10 @@ void zk_gc_prf_test(int party) {
     secret = Integer(128, secret_u.data(), ALICE);
     output = Integer(800, output_u.data());
     prf.init(hmac, secret);
-    prf.opt_compute(hmac, res, 800, secret, label, label_u.size(), seed, seed_u.size(), true,
-                    true, true);
+    // prf.opt_compute(hmac, res, 800, secret, label, label_u.size(), seed, seed_u.size(), true,
+    //                 true, true);
+    prf.opt_rounds_compute(hmac, res, 800, secret, label, label_u.size(), seed, seed_u.size(),
+                           true, true, true);
     if ((output == res).reveal<bool>(PUBLIC)) {
         cout << "zk test passed!" << endl;
     } else {
@@ -389,8 +391,8 @@ int main(int argc, char** argv) {
     // finalize_backend();
 
     setup_protocol(io, ios, threads, party);
-    //zk_gc_prf_test(party);
-    opt_prf_test();
+    zk_gc_prf_test(party);
+    //opt_prf_test();
     finalize_protocol();
 
     bool cheat = CheatRecord::cheated();
