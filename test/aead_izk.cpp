@@ -44,7 +44,8 @@ void it_mac_add_test(IO* io, int party) {
 }
 
 template <typename IO>
-void aead_enc_garble_then_prove_test(IO* io, COT<IO>* ot, int party, bool sec_type = false) {
+void aead_enc_garble_then_prove_test(
+  IO* io, IO* io1, COT<IO>* ot, int party, bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
@@ -73,7 +74,7 @@ void aead_enc_garble_then_prove_test(IO* io, COT<IO>* ot, int party, bool sec_ty
     auto start = emp::clock_start();
 
     // AEAD encryption with GC
-    AEAD<IO>* aead = new AEAD<IO>(io, ot, key);
+    AEAD<IO>* aead = new AEAD<IO>(io, io1, ot, key);
     aead->encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, iv, iv_len, party, sec_type);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
@@ -108,7 +109,8 @@ void aead_enc_garble_then_prove_test(IO* io, COT<IO>* ot, int party, bool sec_ty
 }
 
 template <typename IO>
-void aead_dec_garble_then_prove_test(IO* io, COT<IO>* ot, int party, bool sec_type = false) {
+void aead_dec_garble_then_prove_test(
+  IO* io, IO* io1, COT<IO>* ot, int party, bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
@@ -147,7 +149,7 @@ void aead_dec_garble_then_prove_test(IO* io, COT<IO>* ot, int party, bool sec_ty
     auto start = emp::clock_start();
 
     // AEAD decryption with GC
-    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key);
+    AEAD<NetIO>* aead = new AEAD<NetIO>(io, io1, ot, key);
     bool res =
       aead->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
 
@@ -193,6 +195,8 @@ int main(int argc, char** argv) {
     int party, port;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+    NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
@@ -203,8 +207,8 @@ int main(int argc, char** argv) {
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
     //it_mac_add_test<NetIO>(io, party);
-    aead_enc_garble_then_prove_test<NetIO>(io, cot, party, true);
-    // aead_dec_garble_then_prove_test<NetIO>(io, cot, party, true);
+    aead_enc_garble_then_prove_test<NetIO>(io, io1, cot, party, true);
+    // aead_dec_garble_then_prove_test<NetIO>(io, io1, cot, party, true);
 
     finalize_protocol();
 
@@ -213,6 +217,7 @@ int main(int argc, char** argv) {
         error("cheat!\n");
 
     delete io;
+    delete io1;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }

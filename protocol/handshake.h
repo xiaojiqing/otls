@@ -36,6 +36,7 @@ template <typename IO>
 class HandShake {
    public:
     IO* io;
+    IO* io1;
     HMAC_SHA256 hmac;
     PRF prf;
     E2F<IO>* e2f = nullptr;
@@ -61,7 +62,9 @@ class HandShake {
     unsigned char server_write_iv[iv_length];
     //unsigned char iv_oct[iv_length * 2];
     bool ENABLE_ROUNDS_OPT = false;
-    HandShake(IO* io, COT<IO>* ot, EC_GROUP* group, bool ENABLE_ROUNDS_OPT = false) : io(io) {
+    HandShake(IO* io, IO* io1, COT<IO>* ot, EC_GROUP* group, bool ENABLE_ROUNDS_OPT = false)
+        : io(io) {
+        this->io1 = io1;
         ctx = BN_CTX_new();
         this->group = group;
         q = BN_new();
@@ -71,7 +74,7 @@ class HandShake {
         Ta_client = EC_POINT_new(this->group);
         Ts = EC_POINT_new(this->group);
         EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
-        e2f = new E2F<IO>(io, ot, q, BN_num_bits(q));
+        e2f = new E2F<IO>(io, io1, ot, q, BN_num_bits(q));
         this->ENABLE_ROUNDS_OPT = ENABLE_ROUNDS_OPT;
     }
     ~HandShake() {

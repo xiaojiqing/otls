@@ -50,11 +50,13 @@ class E2F {
         BIGNUM* tmp = BN_new();
         if (party == ALICE) {
             send_bn(io, value);
+            io->flush();
             recv_bn(io1, tmp);
             BN_mod_add(value, value, tmp, ole->q, ole->ctx);
         } else {
-            recv_bn(io, tmp);
             send_bn(io1, value);
+            io1->flush();
+            recv_bn(io, tmp);
             BN_mod_add(value, value, tmp, ole->q, ole->ctx);
         }
         BN_free(tmp);
@@ -122,11 +124,9 @@ class E2F {
             BN_copy(xbma, x);
             BN_copy(ybma, y);
         }
-        std::cout << "here" << endl;
         BIGNUM* w = BN_new();
         BN_mod_sub(w, xbma, b, ole->q, ole->ctx); //epsilon1 = open(xb-xa-b)
         open(w, party);                           //open epsilon1
-        std::cout << "here 1" << endl;
         BN_mod_mul(w, w, a, ole->q, ole->ctx);
         BN_mod_add(w, w, c, ole->q, ole->ctx);
 
