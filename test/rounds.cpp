@@ -168,6 +168,7 @@ void full_protocol(HandShake<IO>* hs, IO* io, COT<IO>* cot, int party) {
     hs->decrypt_server_finished_msg(aead_s, msg, finc_ctxt, finished_msg_length, finc_tag, aad,
                                     aad_len, iv_s, 12, party);
     cout << "dec server finished rounds: " << io->rounds - rounds << endl;
+    rounds = io->rounds;
     // cout << "handshake time: " << emp::time_from(start) << " us" << endl;
 
     unsigned char* cctxt = new unsigned char[QUERY_BYTE_LEN];
@@ -179,12 +180,16 @@ void full_protocol(HandShake<IO>* hs, IO* io, COT<IO>* cot, int party) {
 
     // the client encrypts the first message, and sends to the server.
     rd->encrypt(aead_c, io, cctxt, ctag, cmsg, QUERY_BYTE_LEN, aad, aad_len, iv_c, 12, party);
+    cout << "rd enc rounds: " << io->rounds - rounds << endl;
+    rounds = io->rounds;
     // cout << "record time: " << emp::time_from(start) << " us" << endl;
     // prove handshake in post-record phase.
     start = emp::clock_start();
     switch_to_zk();
     PostRecord<IO>* prd = new PostRecord<IO>(io, hs, aead_c, aead_s, rd, party);
     prd->reveal_pms(Ts);
+    cout << "reveal pms rounds: " << io->rounds - rounds << endl;
+    rounds = io->rounds;
     // Use correct finc_ctxt, fins_ctxt, iv_c, iv_s according to TLS!
     prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, finc_ctxt,
                                    finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
@@ -193,10 +198,10 @@ void full_protocol(HandShake<IO>* hs, IO* io, COT<IO>* cot, int party) {
     prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, QUERY_BYTE_LEN, iv_c, 12);
     prd->prove_record_server_last(prd_smsg2, prd_s2z0, cctxt, RESPONSE_BYTE_LEN, iv_s, 12);
 
-    // // Use correct finc_ctxt and fins_ctxt!
-    // prd->finalize_check(finc_ctxt, finc_tag, 12, aad, finc_ctxt, finc_tag, 12, aad, {prd_cz0},
-    //                     {cctxt}, {ctag}, {QUERY_BYTE_LEN}, {aad}, 1, {prd_sz0}, {sctxt},
-    //                     {stag}, {RESPONSE_BYTE_LEN}, {aad}, 1, aad_len);
+    // Use correct finc_ctxt and fins_ctxt!
+    prd->finalize_check(finc_ctxt, finc_tag, 12, aad, finc_ctxt, finc_tag, 12, aad, {prd_cz0},
+                        {cctxt}, {ctag}, {QUERY_BYTE_LEN}, {aad}, 1, {prd_sz0}, {sctxt},
+                        {stag}, {RESPONSE_BYTE_LEN}, {aad}, 1, aad_len);
 
     sync_zk_gc<IO>();
     switch_to_gc();
@@ -252,7 +257,7 @@ int main(int argc, char** argv) {
     start = clock_start();
     comm = io->counter;
     rounds = io->rounds;
-    bool ENABLE_ROUNDS_OPT = false;
+    bool ENABLE_ROUNDS_OPT = true;
     auto prot = (PADOParty<NetIO>*)(gc_prot_buf);
     IKNP<NetIO>* cot = prot->ot;
     HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group, ENABLE_ROUNDS_OPT);
