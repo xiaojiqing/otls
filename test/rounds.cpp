@@ -20,13 +20,6 @@
 using namespace std;
 using namespace emp;
 
-void round_test() {
-    Integer a(10, 10, ALICE);
-    for (int i = 0; i < 10; i++) {
-        a.reveal<uint32_t>();
-    }
-}
-
 const size_t QUERY_BYTE_LEN = 2 * 1024;
 const size_t RESPONSE_BYTE_LEN = 2 * 1024;
 
