@@ -7,9 +7,9 @@ using namespace std;
 using namespace emp;
 
 template <typename IO>
-void handshake_test(IO* io, IO* io1, COT<IO>* cot, int party) {
+void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io1, cot, group);
+    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io_opt, cot, group);
 
     EC_POINT* V = EC_POINT_new(group);
     EC_POINT* Tc = EC_POINT_new(group);
@@ -67,13 +67,13 @@ void handshake_test(IO* io, IO* io1, COT<IO>* cot, int party) {
     memset(iv_c + iv_length, 0x11, 8);
     memcpy(iv_s, hs->server_write_iv, iv_length);
     memset(iv_s + iv_length, 0x22, 8);
-    AEAD<NetIO>* aead_c = new AEAD<NetIO>(io, io1, cot, hs->client_write_key);
-    AEAD<NetIO>* aead_s = new AEAD<NetIO>(io, io1, cot, hs->server_write_key);
+    AEAD<NetIO>* aead_c = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key);
+    AEAD<NetIO>* aead_s = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key);
 
     // These AEAD instances simulate the server side.
-    AEAD<NetIO>* aead_c_server = new AEAD<NetIO>(io, io1, cot, hs->client_write_key);
+    AEAD<NetIO>* aead_c_server = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key);
 
-    AEAD<NetIO>* aead_s_server = new AEAD<NetIO>(io, io1, cot, hs->server_write_key);
+    AEAD<NetIO>* aead_s_server = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key);
 
     unsigned char* ctxt = new unsigned char[finished_msg_length];
     unsigned char* tag = new unsigned char[tag_length];
@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+    NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
 
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
 
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
-    handshake_test<NetIO>(io, io1, cot, party);
+    handshake_test<NetIO>(io, io_opt, cot, party);
     finalize_protocol();
 
     bool cheat = CheatRecord::cheated();

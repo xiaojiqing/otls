@@ -60,7 +60,7 @@ void full_protocol_offline(bool ENABLE_ROUNDS_OPT = false) {
     delete aead_s_offline;
 }
 template <typename IO>
-void full_protocol(HandShake<IO>* hs, IO* io, IO* io1, COT<IO>* cot, int party) {
+void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     //HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
 
@@ -139,8 +139,8 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io1, COT<IO>* cot, int party) 
     memset(iv_c + iv_length, 0x11, 8);
     memcpy(iv_s, hs->server_write_iv, iv_length);
     memset(iv_s + iv_length, 0x22, 8);
-    AEAD<IO>* aead_c = new AEAD<IO>(io, io1, cot, hs->client_write_key);
-    AEAD<IO>* aead_s = new AEAD<IO>(io, io1, cot, hs->server_write_key);
+    AEAD<IO>* aead_c = new AEAD<IO>(io, io_opt, cot, hs->client_write_key);
+    AEAD<IO>* aead_s = new AEAD<IO>(io, io_opt, cot, hs->server_write_key);
 
     Record<IO>* rd = new Record<IO>;
     cout << "constructors rounds: " << io->rounds - rounds << endl;
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
         io[i] = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + i);
     }
     // NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    // NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+    // NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
 
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
@@ -254,7 +254,7 @@ int main(int argc, char** argv) {
     auto comm = io[0]->counter;
     auto rounds = io[0]->rounds;
     setup_protocol<NetIO>(io[0], ios, threads, party, true);
-    // setup_protocol<NetIO>(io, ios, threads, party);
+    // setup_protocol<NetIO>(io[0], ios, threads, party);
 
     cout << "setup time: " << emp::time_from(start) << " us" << endl;
     cout << "setup comm: " << io[0]->counter << endl;
@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
     start = clock_start();
     comm = io[0]->counter;
     rounds = io[0]->rounds;
-    bool ENABLE_ROUNDS_OPT = true;
+    bool ENABLE_ROUNDS_OPT = false;
     auto prot = (PADOParty<NetIO>*)(gc_prot_buf);
     IKNP<NetIO>* cot = prot->ot;
     HandShake<NetIO>* hs = new HandShake<NetIO>(io[0], io[1], cot, group, ENABLE_ROUNDS_OPT);
@@ -287,6 +287,7 @@ int main(int argc, char** argv) {
     cout << "online time: " << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io[0]->counter - comm << endl;
     cout << "onlie rounds: " << io[0]->rounds - rounds << endl;
+    cout << "io[1] rounds: " << io[1]->rounds << endl;
 
     bool cheat = CheatRecord::cheated();
     if (cheat)

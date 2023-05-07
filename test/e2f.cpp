@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+    NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
 
     // NetIO* ios[2];
     // for (int i = 0; i < 2; ++i)
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     BN_CTX* ctx = BN_CTX_new();
     EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
 
-    E2F<NetIO> e2f(io, io1, cot, q, 256);
+    E2F<NetIO> e2f(io, io_opt, cot, q, 256);
 
     auto start = emp::clock_start();
     e2f.compute_offline(party);

@@ -13,7 +13,7 @@ using namespace emp;
 template <typename IO>
 class AEAD {
    public:
-    IO* io1;
+    IO* io_opt;
     Integer expanded_key;
     Integer nonce;
 
@@ -38,9 +38,9 @@ class AEAD {
     vector<block> mul_hs;
 
     OLEF2K<IO>* ole = nullptr;
-    AEAD(IO* io, IO* io1, COT<IO>* ot, Integer& key) {
+    AEAD(IO* io, IO* io_opt, COT<IO>* ot, Integer& key) {
         ole = new OLEF2K<IO>(io, ot);
-        this->io1 = io1;
+        this->io_opt = io_opt;
         expanded_key = computeKS(key);
         Integer H = computeH();
 
@@ -284,13 +284,13 @@ class AEAD {
             block out_recv = zero_block;
             io->send_block(&out, 1);
             io->flush();
-            io1->recv_block(&out_recv, 1);
+            io_opt->recv_block(&out_recv, 1);
 
             out ^= out_recv;
         } else {
             block out_recv = zero_block;
-            io1->send_block(&out, 1);
-            io1->flush();
+            io_opt->send_block(&out, 1);
+            io_opt->flush();
             io->recv_block(&out_recv, 1);
 
             out ^= out_recv;
@@ -430,7 +430,7 @@ class AEAD {
             io->flush();
 
             // ALICE receives commitment of sigma_b, stores it in com
-            io1->recv_data(com, c.output_length);
+            io_opt->recv_data(com, c.output_length);
 
             // ALICE sends randomness and sigma_a to ALICE;
             io->send_block(&out, 1);
@@ -438,8 +438,8 @@ class AEAD {
             io->flush();
             // ALICE receives randomness and sigma_b
             block outb = zero_block;
-            io1->recv_block(&outb, 1);
-            io1->recv_data(rnd, c.rand_length);
+            io_opt->recv_block(&outb, 1);
+            io_opt->recv_data(rnd, c.rand_length);
 
             if (c.open(com, rnd, (unsigned char*)&outb, sizeof(block)))
                 out = out ^ outb;
@@ -448,17 +448,17 @@ class AEAD {
         } else {
             // BOB computes commitment of sigma_b, and sends it to ALICE
             c.commit(com, rnd, (unsigned char*)&out, sizeof(block));
-            io1->send_data(com, c.output_length);
-            io1->flush();
+            io_opt->send_data(com, c.output_length);
+            io_opt->flush();
 
             // BOB receive commitment of sigma_a, stores it in coma;
             unsigned char* coma = new unsigned char[c.output_length];
             io->recv_data(coma, c.output_length);
 
             // BOB sends randomness and sigma_b to ALICE.
-            io1->send_block(&out, 1);
-            io1->send_data(rnd, c.rand_length);
-            io1->flush();
+            io_opt->send_block(&out, 1);
+            io_opt->send_data(rnd, c.rand_length);
+            io_opt->flush();
             // BOB receives randomness and sigma_a
             unsigned char* rnda = new unsigned char[c.rand_length];
             block outa = zero_block;

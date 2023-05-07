@@ -62,7 +62,7 @@ void full_protocol_offline() {
     delete aead_s_offline;
 }
 template <typename IO>
-void full_protocol(HandShake<IO>* hs, IO* io, IO* io1, COT<IO>* cot, int party) {
+void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     //HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
 
@@ -140,8 +140,8 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io1, COT<IO>* cot, int party) 
     memset(iv_c + iv_length, 0x11, 8);
     memcpy(iv_s, hs->server_write_iv, iv_length);
     memset(iv_s + iv_length, 0x22, 8);
-    AEAD<IO>* aead_c = new AEAD<IO>(io, io1, cot, hs->client_write_key);
-    AEAD<IO>* aead_s = new AEAD<IO>(io, io1, cot, hs->server_write_key);
+    AEAD<IO>* aead_c = new AEAD<IO>(io, io_opt, cot, hs->client_write_key);
+    AEAD<IO>* aead_s = new AEAD<IO>(io, io_opt, cot, hs->server_write_key);
 
     Record<IO>* rd = new Record<IO>;
     cout << "constructors rounds: " << io->rounds - rounds << endl;
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+    NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
 
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
@@ -249,7 +249,7 @@ int main(int argc, char** argv) {
 
     auto prot = (PADOParty<NetIO>*)(gc_prot_buf);
     IKNP<NetIO>* cot = prot->ot;
-    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io1, cot, group);
+    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io_opt, cot, group);
 
     //full_protocol_offline();
     hs->compute_pms_offline(party);
@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
     start = emp::clock_start();
     comm = io->counter;
     rounds = io->rounds;
-    full_protocol<NetIO>(hs, io, io1, cot, party);
+    full_protocol<NetIO>(hs, io, io_opt, cot, party);
     cout << "online time: " << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io->counter - comm << endl;
     cout << "onlie rounds: " << io->rounds - rounds << endl;
@@ -297,6 +297,6 @@ int main(int argc, char** argv) {
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }
-    // delete io1;
+    // delete io_opt;
     return 0;
 }

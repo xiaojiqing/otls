@@ -8,7 +8,7 @@ template <typename IO>
 class E2F {
    public:
     IO* io;
-    IO* io1;
+    IO* io_opt;
     OLE<IO>* ole = nullptr;
     size_t bit_length;
 
@@ -20,10 +20,10 @@ class E2F {
     BIGNUM* r;
     BIGNUM* r2;
 
-    E2F(IO* io, IO* io1, COT<IO>* ot, BIGNUM* q2, size_t bit_length)
+    E2F(IO* io, IO* io_opt, COT<IO>* ot, BIGNUM* q2, size_t bit_length)
         : io(io), bit_length(bit_length) {
         ole = new OLE<IO>(io, ot, q2, bit_length);
-        this->io1 = io1;
+        this->io_opt = io_opt;
         a = BN_new();
         b = BN_new();
         c = BN_new();
@@ -51,11 +51,11 @@ class E2F {
         if (party == ALICE) {
             send_bn(io, value);
             io->flush();
-            recv_bn(io1, tmp);
+            recv_bn(io_opt, tmp);
             BN_mod_add(value, value, tmp, ole->q, ole->ctx);
         } else {
-            send_bn(io1, value);
-            io1->flush();
+            send_bn(io_opt, value);
+            io_opt->flush();
             recv_bn(io, tmp);
             BN_mod_add(value, value, tmp, ole->q, ole->ctx);
         }
