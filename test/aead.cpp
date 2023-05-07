@@ -30,7 +30,8 @@ void convert(int party) {
     delete[] c;
 }
 
-void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = false) {
+void aead_encrypt_test(
+  NetIO* io, NetIO* io1, COT<NetIO>* ot, int party, bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
@@ -57,7 +58,7 @@ void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
     unsigned char tag[16];
 
     auto start = emp::clock_start();
-    AEAD<NetIO> aead(io, ot, key);
+    AEAD<NetIO> aead(io, io1, ot, key);
     aead.encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, iv, iv_len, party, sec_type);
     //aead.enc_finished_msg(io, ctxt, tag, msg, msg_len, aad, aad_len, party);
 
@@ -77,7 +78,8 @@ void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
     delete[] ctxt;
 }
 
-void aead_decrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = false) {
+void aead_decrypt_test(
+  NetIO* io, NetIO* io1, COT<NetIO>* ot, int party, bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
@@ -121,8 +123,9 @@ void aead_decrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
                            0x94, 0xfa, 0xe9, 0x5a, 0xe7, 0x12, 0x1a, 0x47};
 
     auto start = emp::clock_start();
-    AEAD<NetIO> aead(io, ot, key);
-    bool res = aead.decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
+    AEAD<NetIO> aead(io, io1, ot, key);
+    bool res =
+      aead.decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
 
     cout << "time: " << emp::time_from(start) << " us" << endl;
     if (party == ALICE) {
@@ -148,18 +151,18 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+    NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
-
 
     setup_protocol(io, ios, threads, party);
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
 
-
-    aead_encrypt_test(io, cot, party);
-    //aead_decrypt_test(io, cot, party, true);
+    // aead_encrypt_test(io, io1, cot, party);
+    aead_decrypt_test(io, io1, cot, party, true);
     //convert(party);
     cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
     finalize_protocol();
@@ -169,6 +172,7 @@ int main(int argc, char** argv) {
     if (cheat)
         error("cheat!\n");
     delete io;
+    delete io1;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }

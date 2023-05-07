@@ -22,7 +22,8 @@ void aead_encrypt_test_offline(bool sec_type = false) {
     aead_offline.encrypt(msg_len);
 }
 
-void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = false) {
+void aead_encrypt_test(
+  NetIO* io, NetIO* io1, COT<NetIO>* ot, int party, bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
@@ -49,7 +50,7 @@ void aead_encrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
     unsigned char tag[16];
 
     auto comm = io->counter;
-    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key);
+    AEAD<NetIO>* aead = new AEAD<NetIO>(io, io1, ot, key);
     cout << "constructor comm: " << io->counter - comm << endl;
 
     comm = io->counter;
@@ -105,7 +106,8 @@ void aead_decrypt_test_offline(bool sec_type = false) {
     aead_offline.decrypt(ctxt_len);
 }
 
-void aead_decrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = false) {
+void aead_decrypt_test(
+  NetIO* io, NetIO* io1, COT<NetIO>* ot, int party, bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
@@ -149,7 +151,7 @@ void aead_decrypt_test(NetIO* io, COT<NetIO>* ot, int party, bool sec_type = fal
                            0x94, 0xfa, 0xe9, 0x5a, 0xe7, 0x12, 0x1a, 0x47};
 
     auto start = emp::clock_start();
-    AEAD<NetIO>* aead = new AEAD<NetIO>(io, ot, key);
+    AEAD<NetIO>* aead = new AEAD<NetIO>(io, io1, ot, key);
     bool res =
       aead->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
 
@@ -193,6 +195,8 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+    NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
@@ -218,8 +222,8 @@ int main(int argc, char** argv) {
     comm = io->counter;
     // rounds = io->rounds;
     start = emp::clock_start();
-    // aead_encrypt_test(io, cot, party, sec_type);
-    aead_decrypt_test(io, cot, party, sec_type);
+    // aead_encrypt_test(io, io1, cot, party, sec_type);
+    aead_decrypt_test(io, io1, cot, party, sec_type);
     cout << "online time: " << dec << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io->counter - comm << endl;
     // cout << "online rounds: " << io->rounds - rounds << endl;
@@ -229,6 +233,7 @@ int main(int argc, char** argv) {
     if (cheat)
         error("cheat!\n");
     delete io;
+    delete io1;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }
