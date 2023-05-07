@@ -30,8 +30,6 @@ void round_test() {
 const size_t QUERY_BYTE_LEN = 2 * 1024;
 const size_t RESPONSE_BYTE_LEN = 2 * 1024;
 
-const int threads = 1;
-
 void full_protocol_offline(bool ENABLE_ROUNDS_OPT = false) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
@@ -241,55 +239,60 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io1, COT<IO>* cot, int party) 
     EC_GROUP_free(group);
 }
 
+const int threads = 2;
 int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
-    NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
-    NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+    NetIO* io[threads];
+    for (int i = 0; i < threads; i++) {
+        io[i] = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + i);
+    }
+    // NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+    // NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
 
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
-        ios[i] = new BoolIO<NetIO>(io, party == ALICE);
+        ios[i] = new BoolIO<NetIO>(io[i], party == ALICE);
 
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
     auto start = emp::clock_start();
-    auto comm = io->counter;
-    auto rounds = io->rounds;
-    setup_protocol<NetIO>(io, ios, threads, party, true);
+    auto comm = io[0]->counter;
+    auto rounds = io[0]->rounds;
+    setup_protocol<NetIO>(io[0], ios, threads, party, true);
     // setup_protocol<NetIO>(io, ios, threads, party);
 
     cout << "setup time: " << emp::time_from(start) << " us" << endl;
-    cout << "setup comm: " << io->counter << endl;
-    cout << "setup rounds: " << io->rounds << endl;
+    cout << "setup comm: " << io[0]->counter << endl;
+    cout << "setup rounds: " << io[0]->rounds << endl;
 
     start = clock_start();
-    comm = io->counter;
-    rounds = io->rounds;
+    comm = io[0]->counter;
+    rounds = io[0]->rounds;
     bool ENABLE_ROUNDS_OPT = true;
     auto prot = (PADOParty<NetIO>*)(gc_prot_buf);
     IKNP<NetIO>* cot = prot->ot;
-    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io1, cot, group, ENABLE_ROUNDS_OPT);
+    HandShake<NetIO>* hs = new HandShake<NetIO>(io[0], io[1], cot, group, ENABLE_ROUNDS_OPT);
 
     full_protocol_offline(ENABLE_ROUNDS_OPT);
     hs->compute_pms_offline(party);
 
     switch_to_online<NetIO>(party);
     cout << "offline time: " << emp::time_from(start) << " us" << endl;
-    cout << "offline comm: " << io->counter - comm << endl;
-    cout << "offline rounds: " << io->rounds - rounds << endl;
+    cout << "offline comm: " << io[0]->counter - comm << endl;
+    cout << "offline rounds: " << io[0]->rounds - rounds << endl;
 
     start = emp::clock_start();
-    comm = io->counter;
-    rounds = io->rounds;
-    full_protocol<NetIO>(hs, io, io1, cot, party);
+    comm = io[0]->counter;
+    rounds = io[0]->rounds;
+    full_protocol<NetIO>(hs, io[0], io[1], cot, party);
     cout << "gc AND gates: " << dec << gc_circ_buf->num_and() << endl;
     cout << "zk AND gates: " << dec << zk_circ_buf->num_and() << endl;
 
     finalize_protocol();
     cout << "online time: " << emp::time_from(start) << " us" << endl;
-    cout << "online comm: " << io->counter - comm << endl;
-    cout << "onlie rounds: " << io->rounds - rounds << endl;
+    cout << "online comm: " << io[0]->counter - comm << endl;
+    cout << "onlie rounds: " << io[0]->rounds - rounds << endl;
 
     bool cheat = CheatRecord::cheated();
     if (cheat)
@@ -312,10 +315,10 @@ int main(int argc, char** argv) {
     else
         std::cout << "[Mac]Query RSS failed" << std::endl;
 #endif
-    cout << "comm: " << ((io->counter) * 1.0) / 1024 << " KBytes" << endl;
-    delete io;
-    delete io1;
+    cout << "comm: " << ((io[0]->counter) * 1.0) / 1024 << " KBytes" << endl;
+
     for (int i = 0; i < threads; i++) {
+        delete io[i];
         delete ios[i];
     }
     return 0;
