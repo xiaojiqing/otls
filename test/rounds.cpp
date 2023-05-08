@@ -160,7 +160,7 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int part
                                     aad_len, iv_s, 12, party);
     cout << "dec server finished rounds: " << io->rounds - rounds << endl;
     rounds = io->rounds;
-    // cout << "handshake time: " << emp::time_from(start) << " us" << endl;
+    cout << "online handshake time: " << emp::time_from(start) << " us" << endl;
 
     unsigned char* cctxt = new unsigned char[QUERY_BYTE_LEN];
     unsigned char* ctag = new unsigned char[tag_length];
@@ -174,7 +174,7 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int part
     rd->encrypt(aead_c, io, cctxt, ctag, cmsg, QUERY_BYTE_LEN, aad, aad_len, iv_c, 12, party);
     cout << "rd enc rounds: " << io->rounds - rounds << endl;
     rounds = io->rounds;
-    // cout << "record time: " << emp::time_from(start) << " us" << endl;
+    cout << "online record time: " << emp::time_from(start) << " us" << endl;
     // prove handshake in post-record phase.
     start = emp::clock_start();
     switch_to_zk();
@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
     finalize_protocol();
     cout << "online time: " << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io[0]->counter - comm << endl;
-    cout << "onlie rounds: " << io[0]->rounds - rounds << endl;
+    cout << "online rounds: " << io[0]->rounds - rounds << endl;
     cout << "io[1] rounds: " << io[1]->rounds << endl;
 
     bool cheat = CheatRecord::cheated();
