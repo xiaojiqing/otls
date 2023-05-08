@@ -229,7 +229,7 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int part
     delete aead_c;
     delete aead_s;
     delete rd;
-    // delete prd;
+    delete prd;
     EC_GROUP_free(group);
 }
 
