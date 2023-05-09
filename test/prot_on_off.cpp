@@ -28,24 +28,11 @@ const int threads = 1;
 void full_protocol_offline() {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
-    unsigned char* rc = new unsigned char[32];
-    unsigned char* rs = new unsigned char[32];
-
-    unsigned char* tau_c = new unsigned char[32];
-    unsigned char* tau_s = new unsigned char[32];
-
-    memset(rc, 0x11, 32);
-    memset(rs, 0x22, 32);
-    memset(tau_c, 0x33, 32);
-    memset(tau_s, 0x44, 32);
-
     HandShakeOffline* hs_offline = new HandShakeOffline(group);
-    hs_offline->compute_extended_master_key(rc, 32);
-    hs_offline->compute_expansion_keys(rc, 32, rs, 32);
-    hs_offline->compute_client_finished_msg(client_finished_label,
-                                            client_finished_label_length, tau_c, 32);
-    hs_offline->compute_server_finished_msg(server_finished_label,
-                                            server_finished_label_length, tau_s, 32);
+    hs_offline->compute_extended_master_key();
+    hs_offline->compute_expansion_keys();
+    hs_offline->compute_client_finished_msg();
+    hs_offline->compute_server_finished_msg();
 
     AEADOffline* aead_c_offline = new AEADOffline(hs_offline->client_write_key);
     AEADOffline* aead_s_offline = new AEADOffline(hs_offline->server_write_key);

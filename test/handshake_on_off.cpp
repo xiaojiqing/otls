@@ -99,10 +99,8 @@ void handshake_test(
 
     // These AEAD instances simulate the server side.
     AEAD<NetIO>* aead_c_server = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key);
-    cout << "here 1" << endl;
 
     AEAD<NetIO>* aead_s_server = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key);
-    cout << "here" << endl;
 
     unsigned char* ctxt = new unsigned char[finished_msg_length];
     unsigned char* tag = new unsigned char[tag_length];
