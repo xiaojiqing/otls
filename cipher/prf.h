@@ -265,4 +265,60 @@ class PRF {
     }
 };
 
+class PRFOffline {
+   public:
+    PRFOffline(){};
+    ~PRFOffline(){};
+    size_t hmac_calls_num = 0;
+
+    inline void init(HMAC_SHA256_Offline& hmac, const Integer secret) {
+        hmac.init(secret);
+        hmac_calls_num = 0;
+    }
+
+    inline void opt_phash(HMAC_SHA256_Offline& hmac,
+                          Integer& res,
+                          size_t bitlen,
+                          const Integer secret,
+                          bool reuse_in_hash_flag = false,
+                          bool reuse_out_hash_flag = false) {
+        size_t blks = bitlen / (hmac.DIGLEN * hmac.WORDLEN) + 1;
+
+        Integer* tmp = new Integer[hmac.DIGLEN];
+        uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
+
+        for (int i = 1; i < blks + 1; i++) {
+            hmac.opt_hmac_sha256(tmp, reuse_in_hash_flag, reuse_out_hash_flag);
+            hmac_calls_num++;
+
+            Integer tmpInt;
+
+            for (int i = 0; i < hmac.VALLEN; ++i)
+                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(tmp[i].bits),
+                                   std::end(tmp[i].bits));
+
+            // in the gc setting, store the revealed M values.
+            tmpInt.reveal<uint32_t>((uint32_t*)tmpd, PUBLIC);
+
+            hmac.opt_hmac_sha256(tmp, reuse_in_hash_flag, reuse_out_hash_flag);
+            hmac_calls_num++;
+            concat(res, tmp, hmac.DIGLEN);
+        }
+        res.bits.erase(res.bits.begin(),
+                       res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
+
+        delete[] tmp;
+        delete[] tmpd;
+    }
+
+    inline void opt_compute(HMAC_SHA256_Offline& hmac,
+                            Integer& res,
+                            size_t bitlen,
+                            const Integer secret,
+                            bool reuse_in_hash_flag = false,
+                            bool reuse_out_hash_flag = false) {
+        opt_phash(hmac, res, bitlen, secret, reuse_in_hash_flag, reuse_out_hash_flag);
+    }
+};
+
 #endif

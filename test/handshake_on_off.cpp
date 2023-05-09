@@ -9,34 +9,11 @@ using namespace emp;
 void handshake_test_offline(bool ENABLE_ROUNDS_OPT = false) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
-    unsigned char* rc = new unsigned char[32];
-    unsigned char* rs = new unsigned char[32];
-
-    // unsigned char* ufinc = new unsigned char[finished_msg_length];
-    // unsigned char* ufins = new unsigned char[finished_msg_length];
-
-    unsigned char* tau_c = new unsigned char[32];
-    unsigned char* tau_s = new unsigned char[32];
-
-    //unsigned char* iv_oct = new unsigned char[24];
-
-    memset(rc, 0x11, 32);
-    memset(rs, 0x22, 32);
-    memset(tau_c, 0x33, 32);
-    memset(tau_s, 0x44, 32);
-
-    // unsigned char aad[] = {0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed,
-    //                        0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xab, 0xad, 0xda, 0xd2};
-
-    // size_t aad_len = sizeof(aad);
-
     HandShakeOffline* hs_offline = new HandShakeOffline(group, ENABLE_ROUNDS_OPT);
-    hs_offline->compute_extended_master_key(rc, 32);
-    hs_offline->compute_expansion_keys(rc, 32, rs, 32);
-    hs_offline->compute_client_finished_msg(client_finished_label,
-                                            client_finished_label_length, tau_c, 32);
-    hs_offline->compute_server_finished_msg(server_finished_label,
-                                            server_finished_label_length, tau_s, 32);
+    hs_offline->compute_extended_master_key();
+    hs_offline->compute_expansion_keys();
+    hs_offline->compute_client_finished_msg();
+    hs_offline->compute_server_finished_msg();
 
     AEADOffline* aead_c_offline = new AEADOffline(hs_offline->client_write_key);
     AEADOffline* aead_s_offline = new AEADOffline(hs_offline->server_write_key);
@@ -105,7 +82,6 @@ void handshake_test(
 
     //hs->compute_master_key(pms, rc, 32, rs, 32);
     hs->compute_extended_master_key(pms, rc, 32);
-
     hs->compute_expansion_keys(rc, 32, rs, 32);
 
     hs->compute_client_finished_msg(client_finished_label, client_finished_label_length, tau_c,
@@ -117,13 +93,16 @@ void handshake_test(
     memset(iv_c + iv_length, 0x11, 8);
     memcpy(iv_s, hs->server_write_iv, iv_length);
     memset(iv_s + iv_length, 0x22, 8);
+
     AEAD<NetIO>* aead_c = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key);
     AEAD<NetIO>* aead_s = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key);
 
     // These AEAD instances simulate the server side.
     AEAD<NetIO>* aead_c_server = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key);
+    cout << "here 1" << endl;
 
     AEAD<NetIO>* aead_s_server = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key);
+    cout << "here" << endl;
 
     unsigned char* ctxt = new unsigned char[finished_msg_length];
     unsigned char* tag = new unsigned char[tag_length];
@@ -247,7 +226,7 @@ int main(int argc, char** argv) {
 
     comm = io->counter;
     start = emp::clock_start();
-    bool ENABLE_ROUNDS_OPT = true;
+    bool ENABLE_ROUNDS_OPT = false;
     handshake_test_offline(ENABLE_ROUNDS_OPT);
     switch_to_online<NetIO>(party);
     cout << "offline time: " << dec << emp::time_from(start) << endl;
