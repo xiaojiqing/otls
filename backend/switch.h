@@ -3,28 +3,39 @@
 #include "emp-tool/emp-tool.h"
 #include "backend/backend.h"
 #include "emp-zk/emp-zk.h"
+#include "cipher/utils.h"
 
 using namespace emp;
 
-static CircuitExecution* gc_circ_buf = nullptr;
-static ProtocolExecution* gc_prot_buf = nullptr;
-static CircuitExecution* zk_circ_buf = nullptr;
-static ProtocolExecution* zk_prot_buf = nullptr;
-static CircuitExecution* offline_gc_circ_buf = nullptr;
-static ProtocolExecution* offline_gc_prot_buf = nullptr;
-static bool enable_offline = false;
+#ifndef THREADING
+extern CircuitExecution* gc_circ_buf;
+extern ProtocolExecution* gc_prot_buf;
+extern CircuitExecution* zk_circ_buf;
+extern ProtocolExecution* zk_prot_buf;
+extern CircuitExecution* offline_gc_circ_buf;
+extern ProtocolExecution* offline_gc_prot_buf;
+extern bool enable_offline;
+#else
+extern __thread CircuitExecution* gc_circ_buf;
+extern __thread ProtocolExecution* gc_prot_buf;
+extern __thread CircuitExecution* zk_circ_buf;
+extern __thread ProtocolExecution* zk_prot_buf;
+extern __thread CircuitExecution* offline_gc_circ_buf;
+extern __thread ProtocolExecution* offline_gc_prot_buf;
+extern __thread bool enable_offline;
+#endif
 
-void backup_gc_ptr() {
+inline void backup_gc_ptr() {
     gc_circ_buf = CircuitExecution::circ_exec;
     gc_prot_buf = ProtocolExecution::prot_exec;
 }
 
-void backup_zk_ptr() {
+inline void backup_zk_ptr() {
     zk_circ_buf = CircuitExecution::circ_exec;
     zk_prot_buf = ProtocolExecution::prot_exec;
 }
 
-void backup_offline_ptr() {
+inline void backup_offline_ptr() {
     offline_gc_circ_buf = CircuitExecution::circ_exec;
     offline_gc_prot_buf = ProtocolExecution::prot_exec;
 }
@@ -32,6 +43,7 @@ void backup_offline_ptr() {
 template <typename IO>
 void setup_protocol(
   IO* io, BoolIO<IO>** ios, int threads, int party, bool ENABLE_OFFLINE_ONLINE = false) {
+    init_files();
     setup_zk_bool<BoolIO<IO>>(ios, threads, party);
     backup_zk_ptr();
 
@@ -48,7 +60,7 @@ void setup_protocol(
     enable_offline = ENABLE_OFFLINE_ONLINE;
 }
 
-void switch_to_zk() {
+inline void switch_to_zk() {
     CircuitExecution::circ_exec = zk_circ_buf;
     ProtocolExecution::prot_exec = zk_prot_buf;
 }
@@ -58,7 +70,7 @@ void sync_zk_gc() {
     sync_zk_bool<BoolIO<IO>>();
 }
 
-void switch_to_gc() {
+inline void switch_to_gc() {
     CircuitExecution::circ_exec = gc_circ_buf;
     ProtocolExecution::prot_exec = gc_prot_buf;
 }
@@ -72,7 +84,7 @@ void switch_to_online(int party) {
     switch_to_gc();
 }
 
-void finalize_protocol() {
+inline void finalize_protocol() {
     delete gc_circ_buf;
     delete gc_prot_buf;
     delete zk_circ_buf;
@@ -81,5 +93,8 @@ void finalize_protocol() {
         delete offline_gc_circ_buf;
         // delete offline_gc_prot_buf; // delete in sync_offline_online
     }
+
+    uninit_files();
 }
+
 #endif

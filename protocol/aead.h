@@ -169,7 +169,7 @@ class AEAD {
                         const unsigned char* msg,
                         uint64_t msg_len,
                         const unsigned char* aad,
-                        size_t aad_len,
+                        uint64_t aad_len,
                         const unsigned char* iv,
                         size_t iv_len,
                         int party,
@@ -278,6 +278,7 @@ class AEAD {
 
         block out = zero_block;
         obv_ghash(out, xblk, (8 * len) / 128, party);
+
         out ^= z0;
 
         if (party == BOB) {
@@ -308,7 +309,7 @@ class AEAD {
                         uint64_t ctxt_len,
                         const unsigned char* tag,
                         const unsigned char* aad,
-                        size_t aad_len,
+                        uint64_t aad_len,
                         const unsigned char* iv,
                         size_t iv_len,
                         int party,
