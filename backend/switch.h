@@ -12,6 +12,7 @@ static CircuitExecution* zk_circ_buf = nullptr;
 static ProtocolExecution* zk_prot_buf = nullptr;
 static CircuitExecution* offline_gc_circ_buf = nullptr;
 static ProtocolExecution* offline_gc_prot_buf = nullptr;
+static bool enable_offline = false;
 
 void backup_gc_ptr() {
     gc_circ_buf = CircuitExecution::circ_exec;
@@ -44,6 +45,7 @@ void setup_protocol(
         setup_offline_backend(io, party);
         backup_offline_ptr();
     }
+    enable_offline = ENABLE_OFFLINE_ONLINE;
 }
 
 void switch_to_zk() {
@@ -75,9 +77,9 @@ void finalize_protocol() {
     delete gc_prot_buf;
     delete zk_circ_buf;
     delete zk_prot_buf;
-    // if (offline_gc_circ_buf != nullptr)
-    //     delete offline_gc_circ_buf;
-    // if (offline_gc_prot_buf != nullptr)
-    //     delete offline_gc_prot_buf;
+    if (enable_offline) {
+        delete offline_gc_circ_buf;
+        // delete offline_gc_prot_buf; // delete in sync_offline_online
+    }
 }
 #endif

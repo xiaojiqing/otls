@@ -34,6 +34,7 @@ class OnlinePADOGen : public PADOParty<IO> {
         } else {
             this->ot->send(label, label2, length);
         }
+        delete []label2;
     }
 
     //reveal with check
