@@ -26,9 +26,9 @@ const size_t RESPONSE_BYTE_LEN = 2 * 1024;
 const int threads = 1;
 
 template <typename IO>
-void full_protocol(IO* io, COT<IO>* cot, int party) {
+void full_protocol(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-    HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
+    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io_opt, cot, group);
 
     EC_POINT* V = EC_POINT_new(group);
     EC_POINT* Tc = EC_POINT_new(group);
@@ -93,8 +93,8 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     memset(iv_c + iv_length, 0x11, 8);
     memcpy(iv_s, hs->server_write_iv, iv_length);
     memset(iv_s + iv_length, 0x22, 8);
-    AEAD<IO>* aead_c = new AEAD<IO>(io, cot, hs->client_write_key);
-    AEAD<IO>* aead_s = new AEAD<IO>(io, cot, hs->server_write_key);
+    AEAD<IO>* aead_c = new AEAD<IO>(io, io_opt, cot, hs->client_write_key);
+    AEAD<IO>* aead_s = new AEAD<IO>(io, io_opt, cot, hs->server_write_key);
 
     Record<IO>* rd = new Record<IO>;
 
@@ -127,7 +127,8 @@ void full_protocol(IO* io, COT<IO>* cot, int party) {
     PostRecord<IO>* prd = new PostRecord<IO>(io, hs, aead_c, aead_s, rd, party);
     prd->reveal_pms(Ts);
     // Use correct finc_ctxt, fins_ctxt, iv_c, iv_s according to TLS!
-    prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, finc_ctxt, finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
+    prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, finc_ctxt,
+                                   finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
                                    iv_c, 12, iv_s, 12, rc, 32);
     Integer prd_cmsg, prd_cmsg2, prd_smsg, prd_smsg2, prd_cz0, prd_c2z0, prd_sz0, prd_s2z0;
     prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, QUERY_BYTE_LEN, iv_c, 12);
@@ -433,6 +434,8 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+    NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
@@ -442,8 +445,8 @@ int main(int argc, char** argv) {
     cout << "setup time: " << emp::time_from(start) << " us" << endl;
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
-    start = emp::clock_start();
-    full_protocol<NetIO>(io, cot, party);
+    //start = emp::clock_start();
+    full_protocol<NetIO>(io, io_opt, cot, party);
     cout << "total time: " << emp::time_from(start) << " us" << endl;
 
     cout << "gc AND gates: " << dec << gc_circ_buf->num_and() << endl;
@@ -481,10 +484,10 @@ int main(int argc, char** argv) {
         // // for (int i = 0; i < out.size(); i++)
         // //     out[i] = zero_block;
 
-        // NetIO* io1 = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+        // NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
 
         // // Com conversion
-        // com_conv(io1, group, out, party);
+        // com_conv(io_opt, group, out, party);
 
         // EC_GROUP_free(group);
 
@@ -507,9 +510,10 @@ int main(int argc, char** argv) {
 #endif
     cout << "comm: " << ((io->counter) * 1.0) / 1024 << " KBytes" << endl;
     delete io;
+    delete io_opt;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }
-    // delete io1;
+    // delete io_opt;
     return 0;
 }

@@ -135,6 +135,75 @@ class PRF {
         delete[] tmpd;
     }
 
+    inline void opt_rounds_phash(HMAC_SHA256& hmac,
+                                 Integer& res,
+                                 size_t bitlen,
+                                 const Integer secret,
+                                 const unsigned char* seed,
+                                 size_t seedlen,
+                                 bool reuse_in_hash_flag = false,
+                                 bool reuse_out_hash_flag = false,
+                                 bool zk_flag = false) {
+        size_t blks = bitlen / (hmac.DIGLEN * hmac.WORDLEN) + 1;
+        Integer* A = new Integer[blks + 1];
+        Integer* tmp = new Integer[hmac.DIGLEN];
+        unsigned char* rseed = new unsigned char[seedlen];
+        memcpy(rseed, seed, seedlen);
+        reverse(rseed, rseed + seedlen);
+        A[0] = Integer(8 * seedlen, rseed, PUBLIC);
+
+        uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
+
+        for (int i = 1; i < blks + 1; i++) {
+            hmac.opt_rounds_hmac_sha256(tmp, A[i - 1], reuse_in_hash_flag,
+                                        reuse_out_hash_flag);
+            hmac_calls_num++;
+
+            unsigned char A_tmp[32];
+
+            Integer tmpInt;
+            for (int i = 0; i < hmac.VALLEN; ++i)
+                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(tmp[i].bits),
+                                   std::end(tmp[i].bits));
+
+            if (!zk_flag) {
+                // in the gc setting, store the revealed M values.
+                tmpInt.reveal<uint32_t>((uint32_t*)tmpd, PUBLIC);
+                pub_M.push_back(nullptr);
+                pub_M.back() = new uint32_t[hmac.DIGLEN];
+                memcpy(pub_M.back(), tmpd, hmac.DIGLEN * sizeof(uint32_t));
+            } else {
+                // in the zk setting, store the zk shares of M. Reuse the stored public M value.
+                zk_sec_M.push_back(tmpInt);
+                memcpy(tmpd, pub_M[zk_pos++], hmac.DIGLEN * sizeof(uint32_t));
+            }
+
+            for (int j = 0, k = 0; j < hmac.DIGLEN; j++, k += 4) {
+                A_tmp[k] = (tmpd[j] >> 24);
+                A_tmp[k + 1] = (tmpd[j] >> 16);
+                A_tmp[k + 2] = (tmpd[j] >> 8);
+                A_tmp[k + 3] = tmpd[j];
+            }
+            reverse(A_tmp, A_tmp + 32);
+            // A[i] = Integer(32 * 8, A_tmp, PUBLIC);
+            A[i] = Integer(32 * 8, A_tmp, ALICE);
+
+            Integer As;
+            concat(As, &A[i], 1);
+            concat(As, &A[0], 1);
+
+            hmac.opt_rounds_hmac_sha256(tmp, As, reuse_in_hash_flag, reuse_out_hash_flag);
+            hmac_calls_num++;
+            concat(res, tmp, hmac.DIGLEN);
+        }
+        res.bits.erase(res.bits.begin(),
+                       res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
+
+        delete[] A;
+        delete[] tmp;
+        delete[] tmpd;
+    }
+
     inline void compute(HMAC_SHA256& hmac,
                         Integer& res,
                         size_t bitlen,
@@ -167,6 +236,24 @@ class PRF {
         delete[] label_seed;
     }
 
+    inline void opt_rounds_compute(HMAC_SHA256& hmac,
+                                   Integer& res,
+                                   size_t bitlen,
+                                   const Integer secret,
+                                   const unsigned char* label,
+                                   size_t labellen,
+                                   const unsigned char* seed,
+                                   size_t seedlen,
+                                   bool reuse_in_hash_flag = false,
+                                   bool reuse_out_hash_flag = false,
+                                   bool zk_flag = false) {
+        unsigned char* label_seed = new unsigned char[labellen + seedlen];
+        memcpy(label_seed, label, labellen);
+        memcpy(label_seed + labellen, seed, seedlen);
+        opt_rounds_phash(hmac, res, bitlen, secret, label_seed, labellen + seedlen,
+                         reuse_in_hash_flag, reuse_out_hash_flag, zk_flag);
+    }
+
     inline size_t hmac_calls() { return hmac_calls_num; }
 
     template <typename IO>
@@ -175,6 +262,62 @@ class PRF {
             error("length of M is not consistent!\n");
         for (int i = 0; i < pub_M.size(); i++)
             check_zero<IO>(zk_sec_M[i], pub_M[i], 8, party);
+    }
+};
+
+class PRFOffline {
+   public:
+    PRFOffline(){};
+    ~PRFOffline(){};
+    size_t hmac_calls_num = 0;
+
+    inline void init(HMAC_SHA256_Offline& hmac, const Integer secret) {
+        hmac.init(secret);
+        hmac_calls_num = 0;
+    }
+
+    inline void opt_phash(HMAC_SHA256_Offline& hmac,
+                          Integer& res,
+                          size_t bitlen,
+                          const Integer secret,
+                          bool reuse_in_hash_flag = false,
+                          bool reuse_out_hash_flag = false) {
+        size_t blks = bitlen / (hmac.DIGLEN * hmac.WORDLEN) + 1;
+
+        Integer* tmp = new Integer[hmac.DIGLEN];
+        uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
+
+        for (int i = 1; i < blks + 1; i++) {
+            hmac.opt_hmac_sha256(tmp, reuse_in_hash_flag, reuse_out_hash_flag);
+            hmac_calls_num++;
+
+            Integer tmpInt;
+
+            for (int i = 0; i < hmac.VALLEN; ++i)
+                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(tmp[i].bits),
+                                   std::end(tmp[i].bits));
+
+            // in the gc setting, store the revealed M values.
+            tmpInt.reveal<uint32_t>((uint32_t*)tmpd, PUBLIC);
+
+            hmac.opt_hmac_sha256(tmp, reuse_in_hash_flag, reuse_out_hash_flag);
+            hmac_calls_num++;
+            concat(res, tmp, hmac.DIGLEN);
+        }
+        res.bits.erase(res.bits.begin(),
+                       res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
+
+        delete[] tmp;
+        delete[] tmpd;
+    }
+
+    inline void opt_compute(HMAC_SHA256_Offline& hmac,
+                            Integer& res,
+                            size_t bitlen,
+                            const Integer secret,
+                            bool reuse_in_hash_flag = false,
+                            bool reuse_out_hash_flag = false) {
+        opt_phash(hmac, res, bitlen, secret, reuse_in_hash_flag, reuse_out_hash_flag);
     }
 };
 

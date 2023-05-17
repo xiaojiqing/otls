@@ -23,7 +23,8 @@ void sha256test() {
 
     Integer input = str_to_int(str, PUBLIC);
     auto start = clock_start();
-    sha.digest(dig, input, true);
+    // sha.digest(dig, input, true);
+    sha.opt_rounds_digest(dig, input, true);
     cout << "time: " << time_from(start) << "us" << endl;
     print_hex_32(dig, sha.DIGLEN);
 
@@ -56,7 +57,8 @@ void hmac_sha256test() {
     Integer msg = str_to_int(msg_str, PUBLIC);
     auto start = clock_start();
     hmac256.init(key);
-    hmac256.hmac_sha256(dig, msg);
+    // hmac256.hmac_sha256(dig, msg);
+    hmac256.opt_rounds_hmac_sha256(dig, msg, true, true);
     cout << "time: " << time_from(start) << "us" << endl;
 
     // cout << "call: " << hmac256.SHA256_call << endl;
@@ -158,16 +160,16 @@ void zk_gc_hmac_test() {
     cout << "hmac_sha256: ";
     print_hex_32(dig, hmac256.DIGLEN);
 
-    switch_to_zk();
+    // switch_to_zk();
 
-    key = str_to_int(key_str, ALICE);
-    hmac256.init(key);
-    hmac256.opt_hmac_sha256(dig, msg, 77, true, true, true);
-    cout << "hmac_sha256: ";
-    print_hex_32(dig, hmac256.DIGLEN);
+    // key = str_to_int(key_str, ALICE);
+    // hmac256.init(key);
+    // hmac256.opt_hmac_sha256(dig, msg, 77, true, true, true);
+    // cout << "hmac_sha256: ";
+    // print_hex_32(dig, hmac256.DIGLEN);
 
-    sync_zk_gc<NetIO>();
-    switch_to_gc();
+    // sync_zk_gc<NetIO>();
+    // switch_to_gc();
     delete[] dig;
 }
 
@@ -196,7 +198,8 @@ int main(int argc, char** argv) {
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
 
     setup_protocol(io, ios, threads, party);
-    zk_gc_hmac_test();
+    // zk_gc_hmac_test();
+    hmac_sha256test();
     finalize_protocol();
     // cout << "AND gates: " << dec << CircuitExecution::circ_exec->num_and() << endl;
     // finalize_backend();

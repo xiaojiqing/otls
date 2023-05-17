@@ -20,11 +20,11 @@ inline OfflinePADOParty* setup_offline_backend(IO* io, int party) {
     if (party == ALICE) {
         OfflineHalfGateGen<IO>* t = new OfflineHalfGateGen<IO>(io);
         CircuitExecution::circ_exec = t;
-        ProtocolExecution::prot_exec = new OfflinePADOGen<IO>(t);
+        ProtocolExecution::prot_exec = new OfflinePADOGen<IO>(io, t);
     } else {
         OfflineHalfGateEva<IO>* t = new OfflineHalfGateEva<IO>(io);
         CircuitExecution::circ_exec = t;
-        ProtocolExecution::prot_exec = new OfflinePADOEva<IO>(t);
+        ProtocolExecution::prot_exec = new OfflinePADOEva<IO>(io, t);
     }
     return (OfflinePADOParty*)ProtocolExecution::prot_exec;
 }
@@ -41,6 +41,7 @@ inline void sync_offline_online(OfflinePADOParty* offline, PADOParty<IO>* online
         OfflinePADOEva<IO>* off_eva = (OfflinePADOEva<IO>*)offline;
         OnlinePADOEva<IO>* on_eva = (OnlinePADOEva<IO>*)online;
         on_eva->gc->GC = off_eva->gc->GC;
+        on_eva->pub_values = off_eva->pub_values;
     }
     delete offline;
 }

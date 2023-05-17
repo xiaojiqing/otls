@@ -1,51 +1,29 @@
-#include "protocol/aead_izk.h"
+#include "protocol/aead.h"
 #include "emp-tool/emp-tool.h"
 #include "cipher/utils.h"
 #include "backend/backend.h"
-#include "backend/switch.h"
-#include "backend/check_zero.h"
+#include "protocol/aead_izk.h"
 
-using namespace emp;
+void aead_encrypt_test_offline(bool sec_type = false) {
+    unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+                            0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
+    reverse(keyc, keyc + 16);
+    Integer key(128, keyc, ALICE);
+    unsigned char msg[] = {0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5, 0xa5, 0x59,
+                           0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a, 0x86, 0xa7, 0xa9, 0x53,
+                           0x15, 0x34, 0xf7, 0xda, 0x2e, 0x4c, 0x30, 0x3d, 0x8a, 0x31,
+                           0x8a, 0x72, 0x1c, 0x3c, 0x0c, 0x95, 0x95, 0x68, 0x09, 0x53,
+                           0x2f, 0xcf, 0x0e, 0x24, 0x49, 0xa6, 0xb5, 0x25, 0xb1, 0x6a,
+                           0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57, 0xba, 0x63, 0x7b, 0x39};
+    size_t msg_len = sizeof(msg);
 
-template <typename IO>
-void it_mac_add_test(IO* io, int party) {
-    Integer a(128, 1, ALICE);
-    block A = integer_to_block(a);
+    AEADOffline aead_offline(key);
 
-    switch_to_zk();
-    Integer aa(128, 1, ALICE);
-    Integer b(128, &A, ALICE);
-
-    itmac_hom_add_check<IO>(aa, b, party, A);
-    sync_zk_gc<IO>();
-    switch_to_gc();
-
-    PRG prg;
-    int len = 4;
-    unsigned char* buf = new unsigned char[len];
-    unsigned char* buff = new unsigned char[len];
-    prg.random_data(buf, len);
-
-    Integer ac(len * 8, buf, ALICE);
-
-    integer_to_chars(buff, ac);
-
-    switch_to_zk();
-    Integer aac(len * 8, buf, ALICE);
-    reverse(buff, buff + len);
-    Integer bc(len * 8, buff, ALICE);
-
-    itmac_hom_add_check<IO>(aac, bc, party, buff, len);
-    sync_zk_gc<IO>();
-    switch_to_gc();
-
-    delete[] buf;
-    delete[] buff;
+    aead_offline.encrypt(msg_len);
 }
 
-template <typename IO>
-void aead_enc_garble_then_prove_test(
-  IO* io, IO* io_opt, COT<IO>* ot, int party, bool sec_type = false) {
+void aead_encrypt_test(
+  NetIO* io, NetIO* io_opt, COT<NetIO>* ot, int party, bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
@@ -71,13 +49,15 @@ void aead_enc_garble_then_prove_test(
     unsigned char* ctxt = new unsigned char[msg_len];
     unsigned char tag[16];
 
-    auto start = emp::clock_start();
+    auto comm = io->counter;
+    AEAD<NetIO>* aead = new AEAD<NetIO>(io, io_opt, ot, key);
+    cout << "constructor comm: " << io->counter - comm << endl;
 
-    // AEAD encryption with GC
-    AEAD<IO>* aead = new AEAD<IO>(io, io_opt, ot, key);
+    comm = io->counter;
     aead->encrypt(io, ctxt, tag, msg, msg_len, aad, aad_len, iv, iv_len, party, sec_type);
+    cout << "encrypt comm: " << io->counter - comm << endl;
+    //aead.enc_finished_msg(io, ctxt, tag, msg, msg_len, aad, aad_len, party);
 
-    cout << "time: " << emp::time_from(start) << " us" << endl;
     cout << "tag: ";
     for (int i = 0; i < 16; i++) {
         cout << hex << (int)tag[i];
@@ -91,16 +71,16 @@ void aead_enc_garble_then_prove_test(
     cout << endl;
 
     // Prove with IZK
-    start = emp::clock_start();
+    auto start = emp::clock_start();
     switch_to_zk();
     Integer key_zk(128, keyc, ALICE);
-    AEAD_Proof<IO>* aead_proof = new AEAD_Proof<IO>(aead, key_zk, party);
+    AEAD_Proof<NetIO>* aead_proof = new AEAD_Proof<NetIO>(aead, key_zk, party);
     Integer msg_zk, msg_z0;
     aead_proof->prove_aead(msg_zk, msg_z0, ctxt, msg_len, iv, iv_len, sec_type);
     if (sec_type) {
         cout << msg_zk.reveal<string>() << endl;
     }
-    sync_zk_gc<IO>();
+    sync_zk_gc<NetIO>();
     switch_to_gc();
     cout << "prove time: " << time_from(start) << endl;
     delete aead;
@@ -108,13 +88,37 @@ void aead_enc_garble_then_prove_test(
     delete[] ctxt;
 }
 
-template <typename IO>
-void aead_dec_garble_then_prove_test(
-  IO* io, IO* io_opt, COT<IO>* ot, int party, bool sec_type = false) {
+void aead_decrypt_test_offline(bool sec_type = false) {
     unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
                             0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
     reverse(keyc, keyc + 16);
     Integer key(128, keyc, ALICE);
+
+    unsigned char ctxt[] = {0x42, 0x83, 0x1e, 0xc2, 0x21, 0x77, 0x74, 0x24, 0x4b, 0x72,
+                            0x21, 0xb7, 0x84, 0xd0, 0xd4, 0x9c, 0xe3, 0xaa, 0x21, 0x2f,
+                            0x2c, 0x02, 0xa4, 0xe0, 0x35, 0xc1, 0x7e, 0x23, 0x29, 0xac,
+                            0xa1, 0x2e, 0x21, 0xd5, 0x14, 0xb2, 0x54, 0x66, 0x93, 0x1c,
+                            0x7d, 0x8f, 0x6a, 0x5a, 0xac, 0x84, 0xaa, 0x05, 0x1b, 0xa3,
+                            0x0b, 0x39, 0x6a, 0x0a, 0xac, 0x97, 0x3d, 0x58, 0xe0, 0x91};
+
+    size_t ctxt_len = sizeof(ctxt);
+    AEADOffline aead_offline(key);
+    aead_offline.decrypt(ctxt_len);
+}
+
+void aead_decrypt_test(
+  NetIO* io, NetIO* io_opt, COT<NetIO>* ot, int party, bool sec_type = false) {
+    unsigned char keyc[] = {0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+                            0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08};
+    reverse(keyc, keyc + 16);
+    Integer key(128, keyc, ALICE);
+
+    // unsigned char msg[] = {0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5, 0xa5, 0x59,
+    //                        0x09, 0xc5, 0xaf, 0xf5, 0x26, 0x9a, 0x86, 0xa7, 0xa9, 0x53,
+    //                        0x15, 0x34, 0xf7, 0xda, 0x2e, 0x4c, 0x30, 0x3d, 0x8a, 0x31,
+    //                        0x8a, 0x72, 0x1c, 0x3c, 0x0c, 0x95, 0x95, 0x68, 0x09, 0x53,
+    //                        0x2f, 0xcf, 0x0e, 0x24, 0x49, 0xa6, 0xb5, 0x25, 0xb1, 0x6a,
+    //                        0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57, 0xba, 0x63, 0x7b, 0x39};
 
     unsigned char msg[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -147,8 +151,6 @@ void aead_dec_garble_then_prove_test(
                            0x94, 0xfa, 0xe9, 0x5a, 0xe7, 0x12, 0x1a, 0x47};
 
     auto start = emp::clock_start();
-
-    // AEAD decryption with GC
     AEAD<NetIO>* aead = new AEAD<NetIO>(io, io_opt, ot, key);
     bool res =
       aead->decrypt(io, msg, ctxt, ctxt_len, tag, aad, aad_len, iv, iv_len, party, sec_type);
@@ -175,24 +177,22 @@ void aead_dec_garble_then_prove_test(
     start = emp::clock_start();
     switch_to_zk();
     Integer key_zk(128, keyc, ALICE);
-    AEAD_Proof<IO>* aead_proof = new AEAD_Proof<IO>(aead, key_zk, party);
+    AEAD_Proof<NetIO>* aead_proof = new AEAD_Proof<NetIO>(aead, key_zk, party);
     Integer msg_zk, msg_z0;
     aead_proof->prove_aead(msg_zk, msg_z0, ctxt, msg_len, iv, iv_len, sec_type);
     if (sec_type) {
         cout << msg_zk.reveal<string>() << endl;
     }
-
-    sync_zk_gc<IO>();
+    sync_zk_gc<NetIO>();
     switch_to_gc();
     cout << "prove time: " << time_from(start) << endl;
-
     delete aead;
     delete aead_proof;
 }
-const int threads = 1;
 
+int threads = 1;
 int main(int argc, char** argv) {
-    int party, port;
+    int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
     NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
@@ -201,25 +201,40 @@ int main(int argc, char** argv) {
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
 
+    bool sec_type = false;
+
     auto start = emp::clock_start();
-    setup_protocol<NetIO>(io, ios, threads, party);
-    cout << "setup time: " << emp::time_from(start) << endl;
+    auto comm = io->counter;
+    // auto rounds = io->rounds;
+    setup_protocol(io, ios, threads, party, true);
+    // cout << "setup rounds: " << io->rounds << endl;
+    // rounds = io->rounds;
+    // aead_encrypt_test_offline(sec_type);
+    aead_decrypt_test_offline(sec_type);
+    cout << "offline time: " << emp::time_from(start) << " us" << endl;
+
+    switch_to_online<NetIO>(party);
+    cout << "offline comm: " << io->counter - comm << endl;
+    // cout << "offline rounds: " << io->rounds - rounds << endl;
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
-    //it_mac_add_test<NetIO>(io, party);
-    aead_enc_garble_then_prove_test<NetIO>(io, io_opt, cot, party, true);
-    // aead_dec_garble_then_prove_test<NetIO>(io, io_opt, cot, party, true);
+
+    comm = io->counter;
+    // rounds = io->rounds;
+    start = emp::clock_start();
+    // aead_encrypt_test(io, io_opt, cot, party, sec_type);
+    aead_decrypt_test(io, io_opt, cot, party, sec_type);
+    cout << "online time: " << dec << emp::time_from(start) << " us" << endl;
+    cout << "online comm: " << io->counter - comm << endl;
+    // cout << "online rounds: " << io->rounds - rounds << endl;
 
     finalize_protocol();
-
     bool cheat = CheatRecord::cheated();
     if (cheat)
         error("cheat!\n");
-
     delete io;
     delete io_opt;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }
-    return 0;
 }

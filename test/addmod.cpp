@@ -1,13 +1,18 @@
 #include "backend/backend.h"
 #include "protocol/addmod.h"
+#include "backend/switch.h"
 #include <iostream>
 
 using namespace std;
 
+int threads = 1;
 int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+    BoolIO<NetIO>* ios[threads];
+    for (int i = 0; i < threads; i++)
+        ios[i] = new BoolIO<NetIO>(io, party == ALICE);
     //setup_backend(io, party);
     // BIGNUM *q = BN_new(), *n19 = BN_new();
     // BN_set_bit(q, 255);
@@ -20,14 +25,18 @@ int main(int argc, char** argv) {
     BN_CTX* ctx = BN_CTX_new();
     EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
 
-    auto offline = setup_offline_backend(io, party);
+    // auto offline = setup_offline_backend(io, party);
+    setup_protocol(io, ios, threads, party, true);
+
     Integer a(BN_num_bytes(q) * 8, 0, ALICE);
     Integer b(BN_num_bytes(q) * 8, 0, BOB);
     Integer res;
     addmod(res, a, b, q);
-
-    auto online = setup_online_backend(io, party);
-    sync_offline_online(offline, online, party);
+    unsigned char tmp1[32];
+    res.reveal(tmp1, PUBLIC);
+    // auto online = setup_online_backend(io, party);
+    // sync_offline_online(offline, online, party);
+    switch_to_online<NetIO>(party);
 
     // Integer a(BN_num_bytes(q) * 8, 0, ALICE);
     // Integer b(BN_num_bytes(q) * 8, 0, BOB);

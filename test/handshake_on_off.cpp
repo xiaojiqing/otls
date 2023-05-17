@@ -6,10 +6,37 @@
 using namespace std;
 using namespace emp;
 
-template <typename IO>
-void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
+void handshake_test_offline(bool ENABLE_ROUNDS_OPT = false) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io_opt, cot, group);
+
+    HandShakeOffline* hs_offline = new HandShakeOffline(group, ENABLE_ROUNDS_OPT);
+    hs_offline->compute_extended_master_key();
+    hs_offline->compute_expansion_keys();
+    hs_offline->compute_client_finished_msg();
+    hs_offline->compute_server_finished_msg();
+
+    AEADOffline* aead_c_offline = new AEADOffline(hs_offline->client_write_key);
+    AEADOffline* aead_s_offline = new AEADOffline(hs_offline->server_write_key);
+
+    AEADOffline* aead_c_offline_server = new AEADOffline(hs_offline->client_write_key);
+    AEADOffline* aead_s_offline_server = new AEADOffline(hs_offline->server_write_key);
+
+    hs_offline->encrypt_client_finished_msg(aead_c_offline, 12);
+    aead_c_offline_server->decrypt(12);
+
+    aead_s_offline_server->encrypt(12);
+
+    hs_offline->decrypt_server_finished_msg(aead_s_offline, 12);
+
+    delete hs_offline;
+    delete aead_c_offline;
+    delete aead_s_offline;
+}
+template <typename IO>
+void handshake_test(
+  IO* io, IO* io_opt, COT<IO>* cot, int party, bool ENABLE_ROUNDS_OPT = false) {
+    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io_opt, cot, group, ENABLE_ROUNDS_OPT);
 
     EC_POINT* V = EC_POINT_new(group);
     EC_POINT* Tc = EC_POINT_new(group);
@@ -55,7 +82,6 @@ void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
 
     //hs->compute_master_key(pms, rc, 32, rs, 32);
     hs->compute_extended_master_key(pms, rc, 32);
-
     hs->compute_expansion_keys(rc, 32, rs, 32);
 
     hs->compute_client_finished_msg(client_finished_label, client_finished_label_length, tau_c,
@@ -67,6 +93,7 @@ void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     memset(iv_c + iv_length, 0x11, 8);
     memcpy(iv_s, hs->server_write_iv, iv_length);
     memset(iv_s + iv_length, 0x22, 8);
+
     AEAD<NetIO>* aead_c = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key);
     AEAD<NetIO>* aead_s = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key);
 
@@ -189,18 +216,35 @@ int main(int argc, char** argv) {
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
 
-    setup_protocol<NetIO>(io, ios, threads, party);
+    auto start = emp::clock_start();
+    auto comm = io->counter;
+    setup_protocol<NetIO>(io, ios, threads, party, true);
+    cout << "setup time: " << dec << emp::time_from(start) << endl;
+    cout << "setup comm: " << io->counter << endl;
 
+    comm = io->counter;
+    start = emp::clock_start();
+    bool ENABLE_ROUNDS_OPT = false;
+    handshake_test_offline(ENABLE_ROUNDS_OPT);
+    switch_to_online<NetIO>(party);
+    cout << "offline time: " << dec << emp::time_from(start) << endl;
+    cout << "offline comm: " << io->counter - comm << endl;
+
+    comm = io->counter;
+
+    start = emp::clock_start();
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
-    handshake_test<NetIO>(io, io_opt, cot, party);
+    handshake_test<NetIO>(io, io_opt, cot, party, ENABLE_ROUNDS_OPT);
+    cout << "online time: " << dec << emp::time_from(start) << endl;
+    cout << "online comm: " << io->counter - comm << endl;
     finalize_protocol();
 
     bool cheat = CheatRecord::cheated();
     if (cheat)
         error("cheat!\n");
-
     delete io;
+    delete io_opt;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }

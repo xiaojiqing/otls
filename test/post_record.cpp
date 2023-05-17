@@ -6,9 +6,9 @@
 using namespace emp;
 
 template <typename IO>
-void post_record_test(IO* io, COT<IO>* cot, int party) {
+void post_record_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-    HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
+    HandShake<NetIO>* hs = new HandShake<NetIO>(io, io_opt, cot, group);
 
     EC_POINT* V = EC_POINT_new(group);
     EC_POINT* Tc = EC_POINT_new(group);
@@ -70,15 +70,15 @@ void post_record_test(IO* io, COT<IO>* cot, int party) {
     memset(iv_c + iv_length, 0x11, 8);
     memcpy(iv_s, hs->server_write_iv, iv_length);
     memset(iv_s + iv_length, 0x22, 8);
-    AEAD<IO>* aead_c = new AEAD<IO>(io, cot, hs->client_write_key);
-    AEAD<IO>* aead_s = new AEAD<IO>(io, cot, hs->server_write_key);
+    AEAD<IO>* aead_c = new AEAD<IO>(io, io_opt, cot, hs->client_write_key);
+    AEAD<IO>* aead_s = new AEAD<IO>(io, io_opt, cot, hs->server_write_key);
 
     Record<IO>* rd = new Record<IO>;
 
     // These AEAD instances simulate the server side.
-    AEAD<IO>* aead_c_server = new AEAD<IO>(io, cot, hs->client_write_key);
+    AEAD<IO>* aead_c_server = new AEAD<IO>(io, io_opt, cot, hs->client_write_key);
 
-    AEAD<IO>* aead_s_server = new AEAD<IO>(io, cot, hs->server_write_key);
+    AEAD<IO>* aead_s_server = new AEAD<IO>(io, io_opt, cot, hs->server_write_key);
 
     unsigned char* finc_ctxt = new unsigned char[finished_msg_length];
     unsigned char* finc_tag = new unsigned char[tag_length];
@@ -140,7 +140,8 @@ void post_record_test(IO* io, COT<IO>* cot, int party) {
     switch_to_zk();
     PostRecord<IO>* prd = new PostRecord<IO>(io, hs, aead_c, aead_s, rd, party);
     prd->reveal_pms(Ts);
-    prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, fins_ctxt, finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
+    prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, fins_ctxt,
+                                   finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
                                    iv_c, 12, iv_s, 12, rc, 32);
     Integer prd_cmsg, prd_cmsg2, prd_smsg, prd_smsg2, prd_cz0, prd_c2z0, prd_sz0, prd_s2z0;
     prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, 64, iv_c, 12);
@@ -194,6 +195,8 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
     NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+    NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
+
     BoolIO<NetIO>* ios[threads];
     for (int i = 0; i < threads; i++)
         ios[i] = new BoolIO<NetIO>(io, party == ALICE);
@@ -204,7 +207,7 @@ int main(int argc, char** argv) {
     auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
     start = emp::clock_start();
-    post_record_test<NetIO>(io, cot, party);
+    post_record_test<NetIO>(io, io_opt, cot, party);
     cout << "post_record time: " << emp::time_from(start) << " us" << endl;
     finalize_protocol();
 
@@ -213,6 +216,7 @@ int main(int argc, char** argv) {
         error("cheat!\n");
 
     delete io;
+    delete io_opt;
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }

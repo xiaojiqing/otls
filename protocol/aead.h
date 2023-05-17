@@ -13,6 +13,7 @@ using namespace emp;
 template <typename IO>
 class AEAD {
    public:
+    IO* io_opt;
     Integer expanded_key;
     Integer nonce;
 
@@ -37,9 +38,9 @@ class AEAD {
     vector<block> mul_hs;
 
     OLEF2K<IO>* ole = nullptr;
-    AEAD(IO* io, COT<IO>* ot, Integer& key) {
+    AEAD(IO* io, IO* io_opt, COT<IO>* ot, Integer& key) {
         ole = new OLEF2K<IO>(io, ot);
-
+        this->io_opt = io_opt;
         expanded_key = computeKS(key);
         Integer H = computeH();
 
@@ -117,13 +118,19 @@ class AEAD {
         }
     }
 
-    inline void set_nonce(const unsigned char* iv, size_t iv_len) {
+    inline void set_nonce(const unsigned char* iv,
+                          size_t iv_len,
+                          bool ENABLE_ONLINE_OFFLINE = true) {
         assert(iv_len == 12);
 
         unsigned char* riv = new unsigned char[iv_len];
         memcpy(riv, iv, iv_len);
         reverse(riv, riv + iv_len);
-        nonce = Integer(96, riv, PUBLIC);
+        if (ENABLE_ONLINE_OFFLINE)
+            nonce = Integer(96, riv, ALICE);
+        else
+            nonce = Integer(96, riv, PUBLIC);
+
         delete[] riv;
 
         Integer ONE = Integer(32, 1, PUBLIC);
@@ -173,10 +180,8 @@ class AEAD {
         size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
 
         set_nonce(iv, iv_len);
-
         Integer Z;
         gctr(Z, 1 + ctr_len);
-
         Integer Z0;
         Z0.bits.insert(Z0.bits.end(), Z.bits.end() - 128, Z.bits.end());
         block z0 = integer_to_block(Z0);
@@ -194,7 +199,6 @@ class AEAD {
         Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
 
         unsigned char* z = new unsigned char[msg_len];
-
         if (!sec_type) {
             // message is public
             Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
@@ -275,26 +279,26 @@ class AEAD {
         block out = zero_block;
         obv_ghash(out, xblk, (8 * len) / 128, party);
 
-
         out ^= z0;
 
         if (party == BOB) {
             block out_recv = zero_block;
             io->send_block(&out, 1);
-            io->recv_block(&out_recv, 1);
+            io->flush();
+            io_opt->recv_block(&out_recv, 1);
 
             out ^= out_recv;
         } else {
             block out_recv = zero_block;
+            io_opt->send_block(&out, 1);
+            io_opt->flush();
             io->recv_block(&out_recv, 1);
-            io->send_block(&out, 1);
 
             out ^= out_recv;
         }
 
         memcpy(tag, (unsigned char*)&out, 16);
         reverse(tag, tag + 16);
-
         delete[] x;
     }
 
@@ -424,41 +428,43 @@ class AEAD {
             // ALICE computes commitment of sigma_a, and sends it to BOB
             c.commit(com, rnd, (unsigned char*)&out, sizeof(block));
             io->send_data(com, c.output_length);
+            io->flush();
 
             // ALICE receives commitment of sigma_b, stores it in com
-            io->recv_data(com, c.output_length);
+            io_opt->recv_data(com, c.output_length);
 
             // ALICE sends randomness and sigma_a to ALICE;
             io->send_block(&out, 1);
             io->send_data(rnd, c.rand_length);
-
+            io->flush();
             // ALICE receives randomness and sigma_b
             block outb = zero_block;
-            io->recv_block(&outb, 1);
-            io->recv_data(rnd, c.rand_length);
+            io_opt->recv_block(&outb, 1);
+            io_opt->recv_data(rnd, c.rand_length);
 
             if (c.open(com, rnd, (unsigned char*)&outb, sizeof(block)))
                 out = out ^ outb;
             else
                 return false;
         } else {
+            // BOB computes commitment of sigma_b, and sends it to ALICE
+            c.commit(com, rnd, (unsigned char*)&out, sizeof(block));
+            io_opt->send_data(com, c.output_length);
+            io_opt->flush();
+
             // BOB receive commitment of sigma_a, stores it in coma;
             unsigned char* coma = new unsigned char[c.output_length];
             io->recv_data(coma, c.output_length);
 
-            // BOB computes commitment of sigma_b, and sends it to ALICE
-            c.commit(com, rnd, (unsigned char*)&out, sizeof(block));
-            io->send_data(com, c.output_length);
-
+            // BOB sends randomness and sigma_b to ALICE.
+            io_opt->send_block(&out, 1);
+            io_opt->send_data(rnd, c.rand_length);
+            io_opt->flush();
             // BOB receives randomness and sigma_a
             unsigned char* rnda = new unsigned char[c.rand_length];
             block outa = zero_block;
             io->recv_block(&outa, 1);
             io->recv_data(rnda, c.rand_length);
-
-            // BOB sends randomness and sigma_b to ALICE.
-            io->send_block(&out, 1);
-            io->send_data(rnd, c.rand_length);
 
             memcpy(com, coma, c.output_length);
             memcpy(rnd, rnda, c.rand_length);
@@ -536,4 +542,93 @@ inline bool compare_tag(const unsigned char* tag,
     return res;
 }
 
+class AEADOffline {
+   public:
+    Integer expanded_key;
+    Integer nonce;
+
+    AEADOffline(Integer& key) {
+        expanded_key = computeKS(key);
+        Integer H = computeH();
+    }
+    ~AEADOffline() {}
+
+    inline Integer computeH() {
+        Integer in(128, 0, PUBLIC);
+        return computeAES_KS(expanded_key, in);
+    }
+
+    inline Integer inc(Integer& counter, size_t s) {
+        if (counter.size() < s) {
+            error("invalid length s!");
+        }
+        Integer msb = counter, lsb = counter;
+        msb.bits.erase(msb.bits.begin(), msb.bits.begin() + s);
+        lsb.bits.erase(lsb.bits.begin() + s, lsb.bits.end());
+        lsb = lsb + Integer(s, 1, PUBLIC);
+
+        concat(msb, &lsb, 1);
+        return msb;
+    }
+
+    inline void gctr(Integer& res, size_t m) {
+        Integer tmp(128, 0, PUBLIC);
+        for (int i = 0; i < m; i++) {
+            Integer content = nonce;
+            tmp = computeAES_KS(expanded_key, content);
+
+            concat(res, &tmp, 1);
+            nonce = inc(nonce, 32);
+        }
+    }
+
+    inline void set_nonce() {
+        unsigned char riv[12];
+        memset(riv, 0x00, 12);
+        nonce = Integer(96, riv, ALICE);
+
+        Integer ONE = Integer(32, 1, PUBLIC);
+        concat(nonce, &ONE, 1);
+    }
+
+    inline void encrypt(uint64_t msg_len, bool sec_type = false) {
+        size_t u = 128 * ((msg_len * 8 + 128 - 1) / 128) - msg_len * 8;
+        size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
+
+        set_nonce();
+
+        Integer Z;
+        gctr(Z, 1 + ctr_len);
+
+        Z.bits.erase(Z.bits.end() - 128, Z.bits.end());
+        Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
+
+        if (!sec_type) {
+            // message is public
+            unsigned char* z = new unsigned char[msg_len];
+            memset(z, 0x00, msg_len);
+            Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
+            delete[] z;
+        }
+    }
+
+    inline void decrypt(uint64_t ctxt_len, bool sec_type = false) {
+        size_t u = 128 * ((ctxt_len * 8 + 128 - 1) / 128) - ctxt_len * 8;
+        size_t ctr_len = (ctxt_len * 8 + 128 - 1) / 128;
+        set_nonce();
+
+        Integer Z;
+        gctr(Z, 1 + ctr_len);
+
+        Z.bits.erase(Z.bits.end() - 128, Z.bits.end());
+        Z.bits.erase(Z.bits.begin(), Z.bits.begin() + u);
+
+        if (!sec_type) {
+            unsigned char* z = new unsigned char[ctxt_len];
+            memset(z, 0x00, ctxt_len);
+            Z.reveal<unsigned char>((unsigned char*)z, PUBLIC);
+            delete[] z;
+        }
+    }
+};
 #endif

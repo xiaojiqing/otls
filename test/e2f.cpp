@@ -9,11 +9,15 @@ using namespace emp;
 int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
-    NetIO* ios[1];
-    for (int i = 0; i < 1; ++i)
-        ios[i] = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + i);
+    NetIO* io = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port);
+    NetIO* io_opt = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + 1);
 
-    setup_backend(ios[0], party);
+    // NetIO* ios[2];
+    // for (int i = 0; i < 2; ++i)
+    //     ios[i] = new NetIO(party == ALICE ? nullptr : "127.0.0.1", port + i);
+
+    // setup_backend(ios[0], party);
+    setup_backend(io, party);
 
     //	FerretCOT<NetIO> * cot = new FerretCOT<NetIO>(party, 1, ios, true, true, ferret_b13);
 
@@ -30,7 +34,7 @@ int main(int argc, char** argv) {
     BN_CTX* ctx = BN_CTX_new();
     EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
 
-    E2F<NetIO> e2f(ios[0], cot, q, 256);
+    E2F<NetIO> e2f(io, io_opt, cot, q, 256);
 
     auto start = emp::clock_start();
     e2f.compute_offline(party);
@@ -55,11 +59,11 @@ int main(int argc, char** argv) {
     e2f.open(out, party);
 
     if (party == ALICE) {
-        send_bn(ios[0], x);
-        send_bn(ios[0], y);
+        send_bn(io, x);
+        send_bn(io, y);
     } else {
-        recv_bn(ios[0], xa);
-        recv_bn(ios[0], ya);
+        recv_bn(io, xa);
+        recv_bn(io, ya);
 
         BIGNUM* xba = BN_new();
         BN_mod_sub(xba, x, xa, q, ctx);
@@ -93,6 +97,6 @@ int main(int argc, char** argv) {
 
     finalize_backend();
 
-    for (int i = 0; i < 1; ++i)
-        delete ios[i];
+    // for (int i = 0; i < 1; ++i)
+    //     delete ios[i];
 }
