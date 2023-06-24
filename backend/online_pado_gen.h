@@ -7,6 +7,7 @@ class OnlinePADOGen : public PADOParty<IO> {
    public:
     OnlineHalfGateGen<IO>* gc;
     PRG prg;
+    Hash hash;
     OnlinePADOGen(IO* io, OnlineHalfGateGen<IO>* gc, IKNP<IO>* in_ot = nullptr)
         : PADOParty<IO>(io, ALICE, in_ot) {
         this->gc = gc;
@@ -34,7 +35,7 @@ class OnlinePADOGen : public PADOParty<IO> {
         } else {
             this->ot->send(label, label2, length);
         }
-        delete []label2;
+        delete[] label2;
     }
 
     //reveal with check
@@ -53,6 +54,17 @@ class OnlinePADOGen : public PADOParty<IO> {
         }
         if (party == PUBLIC)
             this->io->recv_data(b, length);
+        unsigned char tmp[Hash::DIGEST_SIZE];
+        unsigned char recv_hash[Hash::DIGEST_SIZE];
+        block blk = zero_block;
+        this->io->recv_data(recv_hash, Hash::DIGEST_SIZE);
+        for (int i = 0; i < length; i++) {
+            blk = b[i] ? label[i] ^ (gc->delta) : label[i];
+            hash.put_block(&blk, 1);
+        }
+        hash.digest(tmp);
+        if (memcmp(tmp, recv_hash, Hash::DIGEST_SIZE) != 0)
+            error("Evaluator cheated in reveal msgs!\n");
     }
 };
 #endif

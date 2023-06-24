@@ -7,6 +7,7 @@ class PADOEva : public PADOParty<IO> {
    public:
     OptHalfGateEva<IO>* gc;
     PRG prg;
+    Hash hash;
     PADOEva(IO* io, OptHalfGateEva<IO>* gc, IKNP<IO>* in_ot = nullptr)
         : PADOParty<IO>(io, BOB, in_ot) {
         this->gc = gc;
@@ -75,8 +76,13 @@ class PADOEva : public PADOParty<IO> {
                 }
             }
         }
-        if (party == PUBLIC)
+        if (party == PUBLIC) {
             this->io->send_data(b, length);
+            unsigned char tmp[Hash::DIGEST_SIZE];
+            hash.hash_once(tmp, label, length * sizeof(block));
+            this->io->send_data(tmp, Hash::DIGEST_SIZE);
+            hash.reset();
+        }
     }
 };
 
