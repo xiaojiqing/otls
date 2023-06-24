@@ -52,19 +52,22 @@ class OnlinePADOGen : public PADOParty<IO> {
                 b[i] = (tmp != lsb);
             }
         }
-        if (party == PUBLIC)
+        if (party == PUBLIC) {
             this->io->recv_data(b, length);
-        unsigned char tmp[Hash::DIGEST_SIZE];
-        unsigned char recv_hash[Hash::DIGEST_SIZE];
-        block blk = zero_block;
-        this->io->recv_data(recv_hash, Hash::DIGEST_SIZE);
-        for (int i = 0; i < length; i++) {
-            blk = b[i] ? label[i] ^ (gc->delta) : label[i];
-            hash.put_block(&blk, 1);
+            unsigned char tmp[Hash::DIGEST_SIZE];
+            unsigned char recv_hash[Hash::DIGEST_SIZE];
+            block blk = zero_block;
+            this->io->recv_data(recv_hash, Hash::DIGEST_SIZE);
+            for (int i = 0; i < length; i++) {
+                blk = b[i] ? label[i] ^ (gc->delta) : label[i];
+                hash.put_block(&blk, 1);
+                std::cout << b[i] << " ";
+            }
+
+            hash.digest(tmp);
+            if (memcmp(tmp, recv_hash, Hash::DIGEST_SIZE) != 0)
+                error("Evaluator cheated in revealing msgs!\n");
         }
-        hash.digest(tmp);
-        if (memcmp(tmp, recv_hash, Hash::DIGEST_SIZE) != 0)
-            error("Evaluator cheated in reveal msgs!\n");
     }
 };
 #endif

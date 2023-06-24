@@ -94,7 +94,7 @@ class PADOGen : public PADOParty<IO> {
             }
             hash.digest(tmp);
             if (memcmp(tmp, recv_hash, Hash::DIGEST_SIZE) != 0)
-                error("Evaluator cheated in reveal msgs!\n");
+                error("Evaluator cheated in revealing msgs!\n");
         }
     }
 };

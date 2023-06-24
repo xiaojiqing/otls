@@ -69,7 +69,9 @@ void zk_gc_prf_test(int party, bool flag = false) {
                     true);
 
     //assert(output == res);
-    if ((output == res).reveal<bool>(PUBLIC)) {
+    Bit check = (output == res);
+    cout << check.bit << endl;
+    if (check.reveal<bool>(PUBLIC)) {
         cout << "test passed!" << endl;
     } else {
         cout << "test failed" << endl;
