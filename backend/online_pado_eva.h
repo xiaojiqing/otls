@@ -9,6 +9,7 @@ class OnlinePADOEva : public PADOParty<IO> {
     PRG prg;
     vector<bool> pub_values;
     uint64_t reveal_counter = 0;
+    Hash hash;
     OnlinePADOEva(IO* io, OnlineHalfGateEva<IO>* gc, IKNP<IO>* in_ot = nullptr)
         : PADOParty<IO>(io, BOB, in_ot) {
         this->gc = gc;
@@ -41,6 +42,10 @@ class OnlinePADOEva : public PADOParty<IO> {
         }
         if (party == PUBLIC)
             this->io->send_data(b, length);
+        unsigned char tmp[Hash::DIGEST_SIZE];
+        hash.hash_once(tmp, label, length * sizeof(block));
+        this->io->send_data(tmp, Hash::DIGEST_SIZE);
+        hash.reset();
     }
 };
 
