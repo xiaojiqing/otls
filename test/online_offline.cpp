@@ -3,7 +3,7 @@ using namespace emp;
 using namespace std;
 
 void test_sort(int party, bool online = false) {
-    int size = 100;
+    int size = 2;
     Integer* A = new Integer[size];
     Integer* B = new Integer[size];
     Integer* res = new Integer[size];
@@ -21,10 +21,10 @@ void test_sort(int party, bool online = false) {
         res[i] = A[i] ^ B[i];
 
     sort(res, size);
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < size; ++i) {
         auto r = res[i].reveal<int32_t>();
-        if (party == ALICE and online)
-            cout << r << endl;
+        // if (party == ALICE and online)
+        cout << r << endl;
     }
     delete[] A;
     delete[] B;
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     auto start = emp::clock_start();
     auto offline = setup_offline_backend<NetIO>(io, party);
     test_sort(party, true);
-    cout << "offline:" << emp::time_from(start) << "\n";
+    cout << "offline:" << emp::time_from(start) << endl;
 
     start = emp::clock_start();
     auto online = setup_online_backend<NetIO>(io, party);
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     test_sort(party, true);
     cout << "gates: " << CircuitExecution::circ_exec->num_and() << endl;
     finalize_backend();
-    cout << "online:" << emp::time_from(start) << "\n";
+    cout << "online:" << emp::time_from(start) << endl;
 
     delete io;
 }

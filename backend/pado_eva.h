@@ -81,7 +81,6 @@ class PADOEva : public PADOParty<IO> {
             unsigned char tmp[Hash::DIGEST_SIZE];
             hash.hash_once(tmp, label, length * sizeof(block));
             this->io->send_data(tmp, Hash::DIGEST_SIZE);
-            hash.reset();
         }
     }
 };

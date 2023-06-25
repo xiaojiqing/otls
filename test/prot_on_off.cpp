@@ -223,8 +223,8 @@ int main(int argc, char** argv) {
     auto start = emp::clock_start();
     auto comm = io->counter;
     auto rounds = io->rounds;
-    // setup_protocol<NetIO>(io, ios, threads, party, true);
-    setup_protocol<NetIO>(io, ios, threads, party);
+    setup_protocol<NetIO>(io, ios, threads, party, true);
+    // setup_protocol<NetIO>(io, ios, threads, party);
 
     cout << "setup time: " << emp::time_from(start) << " us" << endl;
     cout << "setup comm: " << io->counter << endl;
@@ -238,10 +238,10 @@ int main(int argc, char** argv) {
     IKNP<NetIO>* cot = prot->ot;
     HandShake<NetIO>* hs = new HandShake<NetIO>(io, io_opt, cot, group);
 
-    //full_protocol_offline();
+    full_protocol_offline();
     hs->compute_pms_offline(party);
 
-    //switch_to_online<NetIO>(party);
+    switch_to_online<NetIO>(party);
     cout << "offline time: " << emp::time_from(start) << " us" << endl;
     cout << "offline comm: " << io->counter - comm << endl;
     cout << "offline rounds: " << io->rounds - rounds << endl;

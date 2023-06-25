@@ -40,12 +40,12 @@ class OnlinePADOEva : public PADOParty<IO> {
                 b[i] = (pub_values[reveal_counter++] != lsb);
             }
         }
-        if (party == PUBLIC)
+        if (party == PUBLIC) {
             this->io->send_data(b, length);
-        unsigned char tmp[Hash::DIGEST_SIZE];
-        hash.hash_once(tmp, label, length * sizeof(block));
-        this->io->send_data(tmp, Hash::DIGEST_SIZE);
-        hash.reset();
+            unsigned char tmp[Hash::DIGEST_SIZE];
+            hash.hash_once(tmp, label, length * sizeof(block));
+            this->io->send_data(tmp, Hash::DIGEST_SIZE);
+        }
     }
 };
 
