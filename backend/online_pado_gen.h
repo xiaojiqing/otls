@@ -61,7 +61,6 @@ class OnlinePADOGen : public PADOParty<IO> {
             for (int i = 0; i < length; i++) {
                 blk = b[i] ? label[i] ^ (gc->delta) : label[i];
                 hash.put_block(&blk, 1);
-                std::cout << b[i] << " ";
             }
 
             hash.digest(tmp);
