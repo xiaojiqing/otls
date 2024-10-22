@@ -16,7 +16,7 @@ inline void itmac_hom_add_check(Integer& res, Integer& pre_res, int party, block
 
     if (party == BOB) {
         block delta = ((ZKVerifier<IO>*)(ProtocolExecution::prot_exec))->ostriple->delta;
-        for (int i = 0; i < pre_res.size(); i++) {
+        for (size_t i = 0; i < pre_res.size(); i++) {
             block tmp = set_bit(zero_block, i);
             block tmpx = tmp & blk;
             if (cmpBlock(&tmpx, &tmp, 1))
@@ -29,14 +29,14 @@ inline void itmac_hom_add_check(Integer& res, Integer& pre_res, int party, block
 // Implicitly homomorphic property and check zero of IT-MAC.
 template <typename IO>
 inline void itmac_hom_add_check(
-  Integer& res, Integer& pre_res, int party, const unsigned char* share, int len) {
+  Integer& res, Integer& pre_res, int party, const unsigned char* share, size_t len) {
     assert(pre_res.size() == (len * 8));
     assert(res.size() == (len * 8));
     if (party == BOB) {
         block delta = ((ZKVerifier<IO>*)(ProtocolExecution::prot_exec))->ostriple->delta;
         bool* data = new bool[len * 8];
         to_bool(data, share, len * 8);
-        for (int i = 0; i < len * 8; i++) {
+        for (size_t i = 0; i < len * 8; i++) {
             if (data[i])
                 pre_res[i].bit = pre_res[i].bit ^ delta;
         }
@@ -52,11 +52,13 @@ class AEAD_Proof {
     Integer expanded_key;
     Integer nonce;
     Integer H;
+    Integer fixed_iv;
     int party;
 
-    AEAD_Proof(AEAD<IO>* aead, Integer& key, int party) {
+    AEAD_Proof(AEAD<IO>* aead, Integer& key, Integer& iv, int party) {
         this->aead = aead;
         this->party = party;
+        this->fixed_iv = iv;
 
         expanded_key = computeKS(key);
         H = computeH();
@@ -85,7 +87,7 @@ class AEAD_Proof {
 
     inline void gctr(Integer& res, size_t m) {
         Integer tmp(128, 0, PUBLIC);
-        for (int i = 0; i < m; i++) {
+        for (size_t i = 0; i < m; i++) {
             Integer content = nonce;
             tmp = computeAES_KS(expanded_key, content);
 
@@ -95,15 +97,18 @@ class AEAD_Proof {
     }
 
     inline void set_nonce(const unsigned char* iv, size_t iv_len) {
-        assert(iv_len == 12);
+        assert(iv_len == 8);
 
         unsigned char* riv = new unsigned char[iv_len];
         memcpy(riv, iv, iv_len);
         reverse(riv, riv + iv_len);
-        nonce = Integer(96, riv, PUBLIC);
+        Integer variable_iv(64, riv, PUBLIC);
         delete[] riv;
 
         Integer ONE = Integer(32, 1, PUBLIC);
+        
+        nonce = fixed_iv;
+        concat(nonce, &variable_iv, 1);
         concat(nonce, &ONE, 1);
     }
 

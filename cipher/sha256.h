@@ -104,7 +104,7 @@ class SHA256 {
 
     SHA256(){};
     ~SHA256() {
-        for (int i = 0; i < iv_in_hashes.size(); i++) {
+        for (size_t i = 0; i < iv_in_hashes.size(); i++) {
             if (iv_in_hashes[i] != nullptr)
                 delete[] iv_in_hashes[i];
         }
@@ -213,14 +213,12 @@ class SHA256 {
     void update(Integer* dig, const Integer padded_input, bool reuse_out_hash_flag = false) {
         uint64_t padded_len = padded_input.size();
         assert(padded_len % CHUNKLEN == 0);
-        Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
         vector<Integer> input_data;
-        for (int i = padded_input.size() - 1; i >= 0; --i) {
-            tmp.bits[i % WORDLEN] = padded_input[i];
+        size_t input_data_size = padded_len / WORDLEN;
+        input_data.resize(input_data_size);
 
-            if (i % WORDLEN == 0) {
-                input_data.push_back(tmp);
-            }
+        for (size_t i = 0; i < input_data_size; i++) {
+            extract_integer(input_data[i], padded_input, i * WORDLEN, WORDLEN);
         }
 
         uint64_t num_chunk = padded_len / CHUNKLEN;
@@ -265,14 +263,11 @@ class SHA256 {
                     bool zk_flag = false) {
         uint64_t len = sec_input.size();
         assert(len == CHUNKLEN);
-        Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
         vector<Integer> input_data;
-        for (int i = len - 1; i >= 0; --i) {
-            tmp.bits[i % WORDLEN] = sec_input[i];
-
-            if (i % WORDLEN == 0) {
-                input_data.push_back(tmp);
-            }
+        size_t input_data_size = len / WORDLEN;
+        input_data.resize(input_data_size);
+        for (size_t i = 0; i < input_data_size; i++) {
+            extract_integer(input_data[i], sec_input, i * WORDLEN, WORDLEN);
         }
 
         // enable the reuse optimization, reuse opened value and store it in iv_in_hash.
@@ -286,9 +281,7 @@ class SHA256 {
                         dig[i] = sha256_h[i];
                     chunk_compress(dig, input_data.data());
                     Integer tmpInt;
-                    for (int i = 0; i < VALLEN; ++i)
-                        tmpInt.bits.insert(tmpInt.bits.end(), std::begin(dig[i].bits),
-                                           std::end(dig[i].bits));
+                    reverse_concat(tmpInt, dig, VALLEN);
                     tmpInt.reveal<uint32_t>((uint32_t*)plain_dig, PUBLIC);
 
                     iv_in_hashes.push_back(nullptr);
@@ -335,9 +328,7 @@ class SHA256 {
 
             chunk_compress(dig, input_data.data());
             Integer tmpInt;
-            for (int i = 0; i < VALLEN; ++i)
-                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(dig[i].bits),
-                                   std::end(dig[i].bits));
+            reverse_concat(tmpInt, dig, VALLEN);
             tmpInt.reveal<uint32_t>((uint32_t*)plain_dig, PUBLIC);
 
             delete[] dig;
@@ -390,15 +381,13 @@ class SHA256 {
                            bool reuse_in_hash_flag = false) {
         uint64_t padded_len = padded_input.size();
         assert(padded_len % CHUNKLEN == 0);
-        Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
         vector<Integer> input_data;
-        for (int i = padded_input.size() - 1; i >= 0; --i) {
-            tmp.bits[i % WORDLEN] = padded_input[i];
-
-            if (i % WORDLEN == 0) {
-                input_data.push_back(tmp);
-            }
+        size_t input_data_size = padded_len / WORDLEN;
+        input_data.resize(input_data_size);
+        for (size_t i = 0; i < input_data_size; i++) {
+            extract_integer(input_data[i], padded_input, i * WORDLEN, WORDLEN);
         }
+
         uint64_t num_chunk = padded_len / CHUNKLEN;
         for (int i = 0; i < VALLEN; i++)
             dig[i] = sha256_h[i];
@@ -560,7 +549,7 @@ class SHA256 {
     template <typename IO>
     inline void sha256_check(int party) {
         uint32_t* tmp = new uint32_t[DIGLEN];
-        for (int i = 0; i < iv_in_hashes.size(); i++) {
+        for (size_t i = 0; i < iv_in_hashes.size(); i++) {
             memcpy(tmp, iv_in_hashes[i], DIGLEN * sizeof(uint32_t));
             reverse(tmp, tmp + DIGLEN);
             check_zero<IO>(zk_iv_in_hashes[i], tmp, DIGLEN, party);
@@ -661,14 +650,11 @@ class SHA256Offline {
     void update(Integer* dig, const Integer padded_input, bool reuse_out_hash_flag = false) {
         uint64_t padded_len = padded_input.size();
         assert(padded_len % CHUNKLEN == 0);
-        Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
         vector<Integer> input_data;
-        for (int i = padded_input.size() - 1; i >= 0; --i) {
-            tmp.bits[i % WORDLEN] = padded_input[i];
-
-            if (i % WORDLEN == 0) {
-                input_data.push_back(tmp);
-            }
+        size_t input_data_size = padded_len / WORDLEN;
+        input_data.resize(input_data_size);
+        for (size_t i = 0; i < input_data_size; i++) {
+            extract_integer(input_data[i], padded_input, i * WORDLEN, WORDLEN);
         }
 
         uint64_t num_chunk = padded_len / CHUNKLEN;
@@ -708,14 +694,11 @@ class SHA256Offline {
     void opt_update(const Integer sec_input, bool reuse_in_hash_flag = false) {
         uint64_t len = sec_input.size();
         assert(len == CHUNKLEN);
-        Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
         vector<Integer> input_data;
-        for (int i = len - 1; i >= 0; --i) {
-            tmp.bits[i % WORDLEN] = sec_input[i];
-
-            if (i % WORDLEN == 0) {
-                input_data.push_back(tmp);
-            }
+        size_t input_data_size = len / WORDLEN;
+        input_data.resize(input_data_size);
+        for (size_t i = 0; i < input_data_size; i++) {
+            extract_integer(input_data[i], sec_input, i * WORDLEN, WORDLEN);
         }
 
         // enable the reuse optimization, reuse opened value and store it in iv_in_hash.
@@ -727,10 +710,9 @@ class SHA256Offline {
                     dig[i] = sha256_h[i];
                 chunk_compress(dig, input_data.data());
                 Integer tmpInt;
+                reverse_concat(tmpInt, dig, VALLEN);
+
                 uint32_t plain_dig[VALLEN];
-                for (int i = 0; i < VALLEN; ++i)
-                    tmpInt.bits.insert(tmpInt.bits.end(), std::begin(dig[i].bits),
-                                       std::end(dig[i].bits));
                 tmpInt.reveal<uint32_t>((uint32_t*)plain_dig, PUBLIC);
 
                 gc_in_open_flag = true;
@@ -743,10 +725,9 @@ class SHA256Offline {
 
             chunk_compress(dig, input_data.data());
             Integer tmpInt;
+            reverse_concat(tmpInt, dig, VALLEN);
+
             uint32_t plain_dig[VALLEN];
-            for (int i = 0; i < VALLEN; ++i)
-                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(dig[i].bits),
-                                   std::end(dig[i].bits));
             tmpInt.reveal<uint32_t>((uint32_t*)plain_dig, PUBLIC);
         }
     }
@@ -756,15 +737,13 @@ class SHA256Offline {
                            bool reuse_in_hash_flag = false) {
         uint64_t padded_len = padded_input.size();
         assert(padded_len % CHUNKLEN == 0);
-        Integer tmp = Integer(WORDLEN, (int)0, PUBLIC);
         vector<Integer> input_data;
-        for (int i = padded_input.size() - 1; i >= 0; --i) {
-            tmp.bits[i % WORDLEN] = padded_input[i];
-
-            if (i % WORDLEN == 0) {
-                input_data.push_back(tmp);
-            }
+        size_t input_data_size = padded_len / WORDLEN;
+        input_data.resize(input_data_size);
+        for (size_t i = 0; i < input_data_size; i++) {
+            extract_integer(input_data[i], padded_input, i * WORDLEN, WORDLEN);
         }
+
         uint64_t num_chunk = padded_len / CHUNKLEN;
         for (int i = 0; i < VALLEN; i++)
             dig[i] = sha256_h[i];

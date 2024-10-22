@@ -16,6 +16,7 @@ class AEAD {
     IO* io_opt;
     Integer expanded_key;
     Integer nonce;
+    Integer fixed_iv;
 
     // xor and zk share of h, for izk to check consistency
     block gc_h;
@@ -38,9 +39,10 @@ class AEAD {
     vector<block> mul_hs;
 
     OLEF2K<IO>* ole = nullptr;
-    AEAD(IO* io, IO* io_opt, COT<IO>* ot, Integer& key) {
+    AEAD(IO* io, IO* io_opt, COT<IO>* ot, Integer& key, Integer& iv) {
         ole = new OLEF2K<IO>(io, ot);
         this->io_opt = io_opt;
+        this->fixed_iv = iv;
         expanded_key = computeKS(key);
         Integer H = computeH();
 
@@ -79,11 +81,11 @@ class AEAD {
     ~AEAD() {
         if (ole != nullptr)
             delete ole;
-        for (int i = 0; i < gc_z.size(); i++) {
+        for (size_t i = 0; i < gc_z.size(); i++) {
             if (gc_z[i] != nullptr)
                 delete[] gc_z[i];
         }
-        for (int i = 0; i < open_z.size(); i++) {
+        for (size_t i = 0; i < open_z.size(); i++) {
             if (open_z[i] != nullptr)
                 delete[] open_z[i];
         }
@@ -109,7 +111,7 @@ class AEAD {
 
     inline void gctr(Integer& res, size_t m) {
         Integer tmp(128, 0, PUBLIC);
-        for (int i = 0; i < m; i++) {
+        for (size_t i = 0; i < m; i++) {
             Integer content = nonce;
             tmp = computeAES_KS(expanded_key, content);
 
@@ -121,19 +123,23 @@ class AEAD {
     inline void set_nonce(const unsigned char* iv,
                           size_t iv_len,
                           bool ENABLE_ONLINE_OFFLINE = true) {
-        assert(iv_len == 12);
+        assert(iv_len == 8);
 
         unsigned char* riv = new unsigned char[iv_len];
         memcpy(riv, iv, iv_len);
         reverse(riv, riv + iv_len);
+        Integer variable_iv;
         if (ENABLE_ONLINE_OFFLINE)
-            nonce = Integer(96, riv, ALICE);
+            variable_iv = Integer(64, riv, ALICE);
         else
-            nonce = Integer(96, riv, PUBLIC);
+            variable_iv = Integer(64, riv, PUBLIC);
 
         delete[] riv;
 
         Integer ONE = Integer(32, 1, PUBLIC);
+
+        nonce = fixed_iv;
+        concat(nonce, &variable_iv, 1);
         concat(nonce, &ONE, 1);
     }
 
@@ -145,10 +151,10 @@ class AEAD {
 
         vector<block> blks;
         if (party == ALICE) {
-            for (int i = 0; i < len; i++)
+            for (size_t i = 0; i < len; i++)
                 blks.push_back(mulBlock(in[i], mul_hs[i]));
         } else {
-            for (int i = 0; i < len; i++)
+            for (size_t i = 0; i < len; i++)
                 blks.push_back(mul_hs[i]);
         }
 
@@ -157,7 +163,7 @@ class AEAD {
         ole->compute(outs.data(), blks.data(), len);
 
         out = zero_block;
-        for (int i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; i++) {
             out = out ^ outs[i];
         }
     }
@@ -212,7 +218,7 @@ class AEAD {
             open_len.push_back(msg_len);
 
             reverse(z, z + msg_len);
-            for (int i = 0; i < msg_len; i++)
+            for (size_t i = 0; i < msg_len; i++)
                 ctxt[i] = msg[i] ^ z[i];
         } else {
             // message is secret
@@ -233,7 +239,7 @@ class AEAD {
 
             if (party == ALICE) {
                 // ALICE computes msg ^ z_A, sends it to BOB.
-                for (int i = 0; i < msg_len; i++)
+                for (size_t i = 0; i < msg_len; i++)
                     ctxt[i] = msg[i] ^ z[i];
                 io->send_data(ctxt, msg_len);
 
@@ -242,7 +248,7 @@ class AEAD {
             } else {
                 // BOB receives msg ^ z_A, computes msg ^ z_A ^ z_B = ctxt
                 io->recv_data(ctxt, msg_len);
-                for (int i = 0; i < msg_len; i++)
+                for (size_t i = 0; i < msg_len; i++)
                     ctxt[i] = ctxt[i] ^ z[i];
 
                 // BOB sends ctxt
@@ -359,7 +365,7 @@ class AEAD {
             open_len.push_back(ctxt_len);
 
             reverse(z, z + ctxt_len);
-            for (int i = 0; i < ctxt_len; i++)
+            for (size_t i = 0; i < ctxt_len; i++)
                 msg[i] = ctxt[i] ^ z[i];
         } else {
             // message is secret
@@ -384,7 +390,7 @@ class AEAD {
             } else {
                 // ALICE receives xor share z_B and recover msg.
                 io->recv_data(msg, ctxt_len);
-                for (int i = 0; i < ctxt_len; i++)
+                for (size_t i = 0; i < ctxt_len; i++)
                     msg[i] = msg[i] ^ z[i] ^ ctxt[i];
             }
         }
@@ -546,10 +552,12 @@ class AEADOffline {
    public:
     Integer expanded_key;
     Integer nonce;
+    Integer fixed_iv;
 
-    AEADOffline(Integer& key) {
+    AEADOffline(Integer& key, Integer& iv) {
         expanded_key = computeKS(key);
         Integer H = computeH();
+        fixed_iv = iv;
     }
     ~AEADOffline() {}
 
@@ -573,7 +581,7 @@ class AEADOffline {
 
     inline void gctr(Integer& res, size_t m) {
         Integer tmp(128, 0, PUBLIC);
-        for (int i = 0; i < m; i++) {
+        for (size_t i = 0; i < m; i++) {
             Integer content = nonce;
             tmp = computeAES_KS(expanded_key, content);
 
@@ -583,11 +591,14 @@ class AEADOffline {
     }
 
     inline void set_nonce() {
-        unsigned char riv[12];
-        memset(riv, 0x00, 12);
-        nonce = Integer(96, riv, ALICE);
+        unsigned char riv[8];
+        memset(riv, 0x00, 8);
+        Integer variable_iv = Integer(64, riv, ALICE);
 
         Integer ONE = Integer(32, 1, PUBLIC);
+
+        nonce = fixed_iv;
+        concat(nonce, &variable_iv, 1);
         concat(nonce, &ONE, 1);
     }
 

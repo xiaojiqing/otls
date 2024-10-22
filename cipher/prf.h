@@ -11,7 +11,7 @@ class PRF {
    public:
     PRF(){};
     ~PRF() {
-        for (int i = 0; i < pub_M.size(); i++) {
+        for (size_t i = 0; i < pub_M.size(); i++) {
             if (pub_M[i] != nullptr) {
                 delete[] pub_M[i];
             }
@@ -40,7 +40,7 @@ class PRF {
         Integer* tmp = new Integer[hmac.DIGLEN];
 
         A[0] = seed;
-        for (int i = 1; i < blks + 1; i++) {
+        for (size_t i = 1; i < blks + 1; i++) {
             hmac.hmac_sha256(tmp, A[i - 1]);
             hmac_calls_num++;
             concat(A[i], tmp, hmac.DIGLEN);
@@ -82,17 +82,14 @@ class PRF {
         uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
 
         unsigned char* As = new unsigned char[32 + seedlen];
-        for (int i = 1; i < blks + 1; i++) {
+        for (size_t i = 1; i < blks + 1; i++) {
             hmac.opt_hmac_sha256(tmp, A[i - 1], hashlen[i - 1], reuse_in_hash_flag,
                                  reuse_out_hash_flag, zk_flag);
             hmac_calls_num++;
             A[i] = new unsigned char[32];
 
             Integer tmpInt;
-
-            for (int i = 0; i < hmac.VALLEN; ++i)
-                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(tmp[i].bits),
-                                   std::end(tmp[i].bits));
+            reverse_concat(tmpInt, tmp, hmac.DIGLEN);
 
             if (!zk_flag) {
                 // in the gc setting, store the revealed M values.
@@ -126,7 +123,7 @@ class PRF {
         res.bits.erase(res.bits.begin(),
                        res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
 
-        for (int i = 0; i < blks + 1; i++) {
+        for (size_t i = 0; i < blks + 1; i++) {
             delete[] A[i];
         }
 
@@ -152,17 +149,12 @@ class PRF {
         reverse(rseed, rseed + seedlen);
         A[0] = Integer(8 * seedlen, rseed, ALICE);
 
-        uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
-
-        for (int i = 1; i < blks + 1; i++) {
+        for (size_t i = 1; i < blks + 1; i++) {
             hmac.opt_rounds_hmac_sha256(tmp, A[i - 1], reuse_in_hash_flag,
                                         reuse_out_hash_flag);
             hmac_calls_num++;
 
-            Integer tmpInt;
-            for (int i = 0; i < hmac.VALLEN; ++i)
-                tmpInt.bits.insert(tmpInt.bits.begin(), tmp[i].bits.begin(), tmp[i].bits.end());
-            A[i] = tmpInt;
+            concat(A[i], &tmp[0], hmac.DIGLEN);
 
             Integer As;
             concat(As, &A[i], 1);
@@ -177,7 +169,7 @@ class PRF {
 
         delete[] A;
         delete[] tmp;
-        delete[] tmpd;
+        delete[] rseed;
     }
 
     inline void compute(HMAC_SHA256& hmac,
@@ -236,7 +228,7 @@ class PRF {
     inline void prf_check(int party) {
         if (pub_M.size() != zk_sec_M.size())
             error("length of M is not consistent!\n");
-        for (int i = 0; i < pub_M.size(); i++)
+        for (size_t i = 0; i < pub_M.size(); i++)
             check_zero<IO>(zk_sec_M[i], pub_M[i], 8, party);
     }
 };
@@ -263,17 +255,13 @@ class PRFOffline {
         Integer* tmp = new Integer[hmac.DIGLEN];
         uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
 
-        for (int i = 1; i < blks + 1; i++) {
+        for (size_t i = 1; i < blks + 1; i++) {
             hmac.opt_hmac_sha256(tmp, reuse_in_hash_flag, reuse_out_hash_flag);
             hmac_calls_num++;
 
-            Integer tmpInt;
-
-            for (int i = 0; i < hmac.VALLEN; ++i)
-                tmpInt.bits.insert(tmpInt.bits.end(), std::begin(tmp[i].bits),
-                                   std::end(tmp[i].bits));
-
             // in the gc setting, store the revealed M values.
+            Integer tmpInt;
+            reverse_concat(tmpInt, tmp, hmac.DIGLEN);
             tmpInt.reveal<uint32_t>((uint32_t*)tmpd, PUBLIC);
 
             hmac.opt_hmac_sha256(tmp, reuse_in_hash_flag, reuse_out_hash_flag);
@@ -300,16 +288,12 @@ class PRFOffline {
 
 
         Integer* tmp = new Integer[hmac.DIGLEN];
-        uint32_t* tmpd = new uint32_t[hmac.DIGLEN];
 
-        for (int i = 1; i < blks + 1; i++) {
+        for (size_t i = 1; i < blks + 1; i++) {
             hmac.opt_rounds_hmac_sha256(tmp, A[i - 1], reuse_in_hash_flag, reuse_out_hash_flag);
             hmac_calls_num++;
 
-            Integer tmpInt;
-            for (int i = 0; i < hmac.VALLEN; ++i)
-                tmpInt.bits.insert(tmpInt.bits.begin(), tmp[i].bits.begin(), tmp[i].bits.end());
-            A[i] = tmpInt;
+            concat(A[i], &tmp[0], hmac.VALLEN); 
 
             Integer As;
             concat(As, &A[i], 1);
@@ -322,8 +306,8 @@ class PRFOffline {
         res.bits.erase(res.bits.begin(),
                        res.bits.begin() + blks * (hmac.DIGLEN * hmac.WORDLEN) - bitlen);
 
+        delete[] A;
         delete[] tmp;
-        delete[] tmpd;
     }
 
     inline void opt_compute(HMAC_SHA256_Offline& hmac,

@@ -22,6 +22,8 @@ class PostRecord {
     Integer master_key;
     Integer client_write_key;
     Integer server_write_key;
+    Integer client_write_iv;
+    Integer server_write_iv;
     Integer client_finished_z0;
     Integer server_finished_z0;
     int party;
@@ -70,32 +72,26 @@ class PostRecord {
         }
     }
 
-    inline void prove_and_check_handshake(const unsigned char* finc_ctxt,
-                                          size_t finc_ctxt_len,
-                                          const unsigned char* fins_ctxt,
-                                          size_t fins_ctxt_len,
-                                          const unsigned char* rc,
-                                          size_t rc_len,
-                                          const unsigned char* rs,
-                                          size_t rs_len,
-                                          const unsigned char* tau_c,
-                                          size_t tau_c_len,
-                                          const unsigned char* tau_s,
-                                          size_t tau_s_len,
-                                          const unsigned char* client_iv,
-                                          size_t client_iv_len,
-                                          const unsigned char* server_iv,
-                                          size_t server_iv_len,
-                                          const unsigned char* session_hash,
-                                          size_t hash_len,
-                                          bool is_extended_master_key = true) {
+    inline void prove_and_check_handshake_step1(const unsigned char* rc,
+                                                size_t rc_len,
+                                                const unsigned char* rs,
+                                                size_t rs_len,
+                                                const unsigned char* tau_c,
+                                                size_t tau_c_len,
+                                                const unsigned char* tau_s,
+                                                size_t tau_s_len,
+                                                const unsigned char* session_hash,
+                                                size_t hash_len,
+                                                bool is_extended_master_key = false) {
         if (is_extended_master_key) {
             hs->prove_extended_master_key(master_key, pms, session_hash, hash_len, party);
         }
         else {
             hs->prove_master_key(master_key, pms, rc, rc_len, rs, rs_len, party);
         }
-        hs->prove_expansion_keys(client_write_key, server_write_key, master_key, rc, rc_len,
+        hs->prove_expansion_keys(client_write_key, server_write_key,
+                                 client_write_iv, server_write_iv,
+                                 master_key, rc, rc_len,
                                  rs, rs_len, party);
 
         hs->prove_client_finished_msg(master_key, client_finished_label,
@@ -104,11 +100,22 @@ class PostRecord {
         hs->prove_server_finished_msg(master_key, server_finished_label,
                                       server_finished_label_length, tau_s, tau_s_len, party);
 
-        aead_proof_c = new AEAD_Proof<IO>(aead_c, client_write_key, party);
-        aead_proof_s = new AEAD_Proof<IO>(aead_s, server_write_key, party);
+        aead_proof_c = new AEAD_Proof<IO>(aead_c, client_write_key, client_write_iv, party);
+        aead_proof_s = new AEAD_Proof<IO>(aead_s, server_write_key, server_write_iv, party);
+    }
 
+    inline void prove_and_check_handshake_step2(const unsigned char* finc_ctxt,
+                                                size_t finc_ctxt_len,
+                                                const unsigned char* client_iv,
+                                                size_t client_iv_len) {
         hs->prove_enc_dec_finished_msg(aead_proof_c, client_finished_z0, finc_ctxt,
                                        finc_ctxt_len, client_iv, client_iv_len);
+    }
+
+    inline void prove_and_check_handshake_step3(const unsigned char* fins_ctxt,
+                                                size_t fins_ctxt_len,
+                                                const unsigned char* server_iv,
+                                                size_t server_iv_len) {
         hs->prove_enc_dec_finished_msg(aead_proof_s, server_finished_z0, fins_ctxt,
                                        fins_ctxt_len, server_iv, server_iv_len);
         hs->handshake_check(party);
@@ -184,10 +191,10 @@ class PostRecord {
           compare_tag(finc_tag, blks_h[0], blks_h[2], finc_ctxt, finc_len, finc_aad, aad_len);
         res &=
           compare_tag(fins_tag, blks_h[1], blks_h[3], fins_ctxt, fins_len, fins_aad, aad_len);
-        for (int i = 0; i < enc_num; i++)
+        for (size_t i = 0; i < enc_num; i++)
             res &= compare_tag(enc_tags[i], blks_h[0], blks_h[4 + i], enc_ctxts[i],
                                enc_ctxts_len[i], enc_aads[i], aad_len);
-        for (int i = 0; i < dec_num; i++)
+        for (size_t i = 0; i < dec_num; i++)
             res &= compare_tag(dec_tags[i], blks_h[1], blks_h[4 + enc_num + i], dec_ctxts[i],
                                dec_ctxts_len[i], dec_aads[i], aad_len);
 
