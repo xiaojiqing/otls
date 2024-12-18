@@ -1,9 +1,10 @@
-#ifndef PADO_OPT_HALFGATE_GEN_
-#define PADO_OPT_HALFGATE_GEN_
+#ifndef PRIMUS_OPT_HALFGATE_GEN_
+#define PRIMUS_OPT_HALFGATE_GEN_
 #include "emp-tool/emp-tool.h"
 #include "backend/bn_utils.h"
 using namespace emp;
 
+/* Optimized half-gate garbler process */
 template <typename T>
 class OptHalfGateGen : public CircuitExecution {
    public:

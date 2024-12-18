@@ -1,16 +1,15 @@
-#ifndef PADO_GEN_H__
-#define PADO_GEN_H__
-#include "backend/pado_party.h"
+#ifndef PRIMUS_GEN_H__
+#define PRIMUS_GEN_H__
+#include "backend/primus_party.h"
 
-//TODO: allow tuning delta
-//TODO: preset batch_size
+/* The generator (ALICE) in the protocol */
 template <typename IO>
-class PADOGen : public PADOParty<IO> {
+class PrimusGen : public PrimusParty<IO> {
    public:
     OptHalfGateGen<IO>* gc;
     Hash hash;
-    PADOGen(IO* io, OptHalfGateGen<IO>* gc, IKNP<IO>* in_ot = nullptr)
-        : PADOParty<IO>(io, ALICE, in_ot) {
+    PrimusGen(IO* io, OptHalfGateGen<IO>* gc, IKNP<IO>* in_ot = nullptr)
+        : PrimusParty<IO>(io, ALICE, in_ot) {
         this->gc = gc;
         if (in_ot == nullptr) {
             bool delta_bool[128];
@@ -89,7 +88,7 @@ class PADOGen : public PADOParty<IO> {
             block blk = zero_block;
             this->io->recv_data(recv_hash, Hash::DIGEST_SIZE);
             for (int i = 0; i < length; i++) {
-                blk = b[i] ? label[i] ^ (gc->delta) : label[i];
+                blk = gc->is_public(label[i], PUBLIC)? label[i]: (b[i] ? label[i] ^ (gc->delta) : label[i]);
                 hash.put_block(&blk, 1);
             }
             hash.digest(tmp);

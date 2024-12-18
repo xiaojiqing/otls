@@ -43,6 +43,8 @@ class AESProver {
     Integer fixed_iv;
     Integer nonce;
 
+    // `key` and `iv` are client(server) write key and iv respectively derived from master secret.
+    // Note the length of `key` is 16-bytes and the length of `iv` is 4-bytes.
     inline AESProver(Integer& key, Integer& iv) {
         assert(key.size() == 128);
         expanded_key = computeKS(key);
@@ -95,6 +97,9 @@ class AESProver {
         }
     }
 
+    // `iv_len` should be 8, the `iv` derived from master secret
+    // will be concated with this iv to form the full iv, the 
+    // length of which is 12-bytes.
     inline void set_nonce(const unsigned char* iv,
                           size_t iv_len) {
         assert(iv_len == 8);
@@ -113,9 +118,7 @@ class AESProver {
         concat(nonce, &ONE, 1);
     }
 
-    inline Integer computeCounter(const unsigned char* iv,
-                                  size_t iv_len,
-                                  size_t msg_len) {
+    inline Integer computeCounter(const unsigned char* iv, size_t iv_len, size_t msg_len) {
         size_t u = 128 * ((msg_len * 8 + 128 - 1) / 128) - msg_len * 8;
 
         size_t ctr_len = (msg_len * 8 + 128 - 1) / 128;
@@ -141,7 +144,6 @@ class AESProver {
         set_nonce(iv, iv_len);
         gctr_opt(counters, ids);
 
-        size_t offset = 0;
         Integer izk_counter;
         for (size_t i = 0; i < counterInfos.size(); i++) {
             const AESCounterInfo& c = counterInfos[i];
@@ -183,7 +185,7 @@ class AESProver {
         Integer c = computeCounter(iv, iv_len, msg_len);
 
         unsigned char* c_xor_m = new unsigned char[msg_len];
-        for (int i = 0; i < msg_len; ++i) {
+        for (size_t i = 0; i < msg_len; ++i) {
             c_xor_m[msg_len - 1 - i] = msgs[i] ^ ctxts[i];
         }
 
@@ -200,7 +202,7 @@ class AESProver {
     // This proves AES(k, nounces) xor msgs = ctxts in blocks, where msgs is private.
     // Note the msgs and ctxts should be continuous and no block can be omitted.
     inline bool prove_private_msgs(const unsigned char* iv,
-                                   size_t iv_len, 
+                                   size_t iv_len,
                                    const Integer& msgs,
                                    const unsigned char* ctxts,
                                    size_t msg_len) {
@@ -231,7 +233,7 @@ class AESProver {
         Integer c = computeCounterOpt(counterInfos, iv, iv_len);
 
         unsigned char* c_xor_m = new unsigned char[msg_len];
-        for (int i = 0; i < msg_len; ++i) {
+        for (size_t i = 0; i < msg_len; ++i) {
             c_xor_m[msg_len - 1 - i] = msgs[i] ^ ctxts[i];
         }
 

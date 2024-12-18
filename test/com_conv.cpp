@@ -14,7 +14,6 @@ void com_conv_test(
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     BIGNUM* q = BN_new();
     BN_CTX* ctx = BN_CTX_new();
-    //EC_GROUP_get_curve(group, q, NULL, NULL, ctx);
     BN_copy(q, EC_GROUP_get0_order(group));
 
     BIGNUM* sa = BN_new();
@@ -34,7 +33,7 @@ void com_conv_test(
     EC_POINT_mul(group, h, s, NULL, NULL, ctx);
 
     vector<block> raw(array_len);
-    for (int i = 0; i < raw.size(); i++)
+    for (size_t i = 0; i < raw.size(); i++)
         raw[i] = input[i].bit;
 
     size_t batch_size = 255;
@@ -45,7 +44,7 @@ void com_conv_test(
     coms.resize(chunk_len);
     rnds.resize(chunk_len);
 
-    for (int i = 0; i < chunk_len; i++) {
+    for (size_t i = 0; i < chunk_len; i++) {
         coms[i] = EC_POINT_new(group);
         rnds[i] = BN_new();
     }
@@ -55,9 +54,7 @@ void com_conv_test(
 
     if (party == BOB) {
         auto start = emp::clock_start();
-        auto rounds = io->rounds;
         bool res = conv.compute_com_send(coms, raw, pc, batch_size);
-        cout << "BOB rounds: " << io->rounds - rounds << endl;
         if (res) {
             cout << "BOB check passed" << endl;
         } else {
@@ -67,9 +64,7 @@ void com_conv_test(
         cout << "BOB comm: " << io->counter - comm << " bytes" << endl;
     } else {
         auto start = emp::clock_start();
-        auto rounds = io->rounds;
         bool res = conv.compute_com_recv(coms, rnds, raw, pc, batch_size);
-        cout << "ALICE rounds: " << io->rounds - rounds << endl;
         if (res) {
             cout << "ALICE check passed" << endl;
         } else {
@@ -79,7 +74,7 @@ void com_conv_test(
         cout << "ALICE comms: " << io->counter - comm << " bytes" << endl;
     }
 
-    for (int i = 0; i < chunk_len; i++) {
+    for (size_t i = 0; i < chunk_len; i++) {
         EC_POINT_free(coms[i]);
         BN_free(rnds[i]);
     }
@@ -98,7 +93,7 @@ int main(int argc, char** argv) {
 
     switch_to_zk();
 
-    IKNP<NetIO>* cot = ((PADOParty<NetIO>*)(gc_prot_buf))->ot;
+    IKNP<NetIO>* cot = ((PrimusParty<NetIO>*)(gc_prot_buf))->ot;
     FerretCOT<NetIO>* fcot;
     if (party == ALICE) {
         fcot = ((ZKProver<NetIO>*)(zk_prot_buf))->ostriple->ferret;
@@ -111,9 +106,6 @@ int main(int argc, char** argv) {
     unsigned char* val = new unsigned char[array_len / 8];
     prg.random_data(val, array_len / 8);
     Integer input(array_len, val, ALICE);
-
-    // this step is critical.
-    // ios[0]->flush();
 
     com_conv_test<NetIO>(io, cot, fcot->Delta, party, input, array_len);
     finalize_protocol();

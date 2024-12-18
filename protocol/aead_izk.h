@@ -8,7 +8,7 @@
 
 using namespace emp;
 
-// Implicitly homomorphic property and check zero of IT-MAC.
+/* Implicitly homomorphic property and check zero of IT-MAC. */
 template <typename IO>
 inline void itmac_hom_add_check(Integer& res, Integer& pre_res, int party, block blk) {
     assert(pre_res.size() == 128);
@@ -26,7 +26,7 @@ inline void itmac_hom_add_check(Integer& res, Integer& pre_res, int party, block
     check_zero<IO>(res ^ pre_res, party);
 }
 
-// Implicitly homomorphic property and check zero of IT-MAC.
+/* Implicitly homomorphic property and check zero of IT-MAC. */
 template <typename IO>
 inline void itmac_hom_add_check(
   Integer& res, Integer& pre_res, int party, const unsigned char* share, size_t len) {
@@ -55,6 +55,8 @@ class AEAD_Proof {
     Integer fixed_iv;
     int party;
 
+    // `key` and `iv` are client(server) write key and iv respectively derived from master secret.
+    // Note the length of `key` is 16-bytes and the length of `iv` is 4-bytes.
     AEAD_Proof(AEAD<IO>* aead, Integer& key, Integer& iv, int party) {
         this->aead = aead;
         this->party = party;
@@ -96,6 +98,9 @@ class AEAD_Proof {
         }
     }
 
+    // `iv_len` should be 8, the `iv` derived from master secret
+    // will be concated with this iv to form the full iv, the 
+    // length of which is 12-bytes.
     inline void set_nonce(const unsigned char* iv, size_t iv_len) {
         assert(iv_len == 8);
 
@@ -106,7 +111,7 @@ class AEAD_Proof {
         delete[] riv;
 
         Integer ONE = Integer(32, 1, PUBLIC);
-        
+
         nonce = fixed_iv;
         concat(nonce, &variable_iv, 1);
         concat(nonce, &ONE, 1);

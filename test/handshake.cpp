@@ -29,8 +29,6 @@ void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     unsigned char* tau_c = new unsigned char[32];
     unsigned char* tau_s = new unsigned char[32];
 
-    //unsigned char* iv_oct = new unsigned char[24];
-
     memset(rc, 0x11, 32);
     memset(rs, 0x22, 32);
     memset(tau_c, 0x33, 32);
@@ -42,7 +40,7 @@ void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     size_t aad_len = sizeof(aad);
 
     if (party == BOB) {
-        hs->compute_pado_VA(V, Ts);
+        hs->compute_primus_VA(V, Ts);
     } else {
         hs->compute_client_VB(Tc, V, Ts);
     }
@@ -62,33 +60,31 @@ void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
                                     32);
     hs->compute_server_finished_msg(server_finished_label, server_finished_label_length, tau_s,
                                     32);
-    unsigned char iv_c[12], iv_s[12];
-    memcpy(iv_c, hs->client_write_iv, iv_length);
-    memset(iv_c + iv_length, 0x11, 8);
-    memcpy(iv_s, hs->server_write_iv, iv_length);
-    memset(iv_s + iv_length, 0x22, 8);
-    AEAD<NetIO>* aead_c = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key);
-    AEAD<NetIO>* aead_s = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key);
+    unsigned char iv_c_oct[8], iv_s_oct[8];
+    memset(iv_c_oct, 0x11, 8);
+    memset(iv_s_oct, 0x22, 8);
+    AEAD<NetIO>* aead_c = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key, hs->client_write_iv);
+    AEAD<NetIO>* aead_s = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key, hs->server_write_iv);
 
     // These AEAD instances simulate the server side.
-    AEAD<NetIO>* aead_c_server = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key);
+    AEAD<NetIO>* aead_c_server = new AEAD<NetIO>(io, io_opt, cot, hs->client_write_key, hs->client_write_iv);
 
-    AEAD<NetIO>* aead_s_server = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key);
+    AEAD<NetIO>* aead_s_server = new AEAD<NetIO>(io, io_opt, cot, hs->server_write_key, hs->server_write_iv);
 
     unsigned char* ctxt = new unsigned char[finished_msg_length];
     unsigned char* tag = new unsigned char[tag_length];
     unsigned char* msg = new unsigned char[finished_msg_length];
 
-    hs->encrypt_client_finished_msg(aead_c, ctxt, tag, hs->client_ufin, 12, aad, aad_len, iv_c,
-                                    12, party);
+    hs->encrypt_client_finished_msg(aead_c, ctxt, tag, hs->client_ufin, 12, aad, aad_len, iv_c_oct,
+                                    8, party);
     bool res = aead_c_server->decrypt(io, msg, ctxt, finished_msg_length, tag, aad, aad_len,
-                                      iv_c, 12, party);
+                                      iv_c_oct, 8, party);
     cout << "res: " << res << endl;
-    for (int i = 0; i < finished_msg_length; i++)
+    for (size_t i = 0; i < finished_msg_length; i++)
         cout << hex << (int)msg[i];
     cout << endl;
 
-    for (int i = 0; i < finished_msg_length; i++)
+    for (size_t i = 0; i < finished_msg_length; i++)
         cout << hex << (int)hs->client_ufin[i];
     cout << endl;
 
@@ -97,15 +93,15 @@ void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     unsigned char* msg2 = new unsigned char[finished_msg_length];
 
     aead_s_server->encrypt(io, ctxt2, tag2, hs->server_ufin, finished_msg_length, aad, aad_len,
-                           iv_s, 12, party);
+                           iv_s_oct, 8, party);
 
     bool res2 = hs->decrypt_server_finished_msg(aead_s, msg2, ctxt2, finished_msg_length, tag2,
-                                                aad, aad_len, iv_s, 12, party);
+                                                aad, aad_len, iv_s_oct, 8, party);
     cout << "res2: " << res2 << endl;
 
     // prove handshake
     if (party == BOB) {
-        send_bn(io, hs->ta_pado);
+        send_bn(io, hs->ta_primus);
     } else {
         recv_bn(io, t);
         EC_POINT* T = EC_POINT_new(hs->group);
@@ -123,23 +119,23 @@ void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     }
 
     switch_to_zk();
-    Integer ms, key_c, key_s;
+    Integer ms, key_c, key_s, iv_c, iv_s;
     //hs->prove_master_key(ms, full_pms, rc, 32, rs, 32, party);
     hs->prove_extended_master_key(ms, full_pms, rc, 32, party);
-    hs->prove_expansion_keys(key_c, key_s, ms, rc, 32, rs, 32, party);
+    hs->prove_expansion_keys(key_c, key_s, iv_c, iv_s, ms, rc, 32, rs, 32, party);
 
-    AEAD_Proof<IO>* aead_proof_c = new AEAD_Proof<IO>(aead_c, key_c, party);
-    AEAD_Proof<IO>* aead_proof_s = new AEAD_Proof<IO>(aead_s, key_s, party);
+    AEAD_Proof<IO>* aead_proof_c = new AEAD_Proof<IO>(aead_c, key_c, iv_c, party);
+    AEAD_Proof<IO>* aead_proof_s = new AEAD_Proof<IO>(aead_s, key_s, iv_s, party);
 
     hs->prove_client_finished_msg(ms, client_finished_label, client_finished_label_length,
                                   tau_c, 32, party);
     hs->prove_server_finished_msg(ms, server_finished_label, server_finished_label_length,
                                   tau_s, 32, party);
     Integer client_z0, server_z0;
-    hs->prove_enc_dec_finished_msg(aead_proof_c, client_z0, ctxt, finished_msg_length, iv_c,
-                                   12);
-    hs->prove_enc_dec_finished_msg(aead_proof_s, server_z0, ctxt2, finished_msg_length, iv_s,
-                                   12);
+    hs->prove_enc_dec_finished_msg(aead_proof_c, client_z0, ctxt, finished_msg_length, iv_c_oct,
+                                   8);
+    hs->prove_enc_dec_finished_msg(aead_proof_s, server_z0, ctxt2, finished_msg_length, iv_s_oct,
+                                   8);
 
     hs->handshake_check(party);
 
@@ -167,7 +163,6 @@ void handshake_test(IO* io, IO* io_opt, COT<IO>* cot, int party) {
     delete[] msg2;
     delete[] tag;
     delete[] msg;
-    // delete[] iv_oct;
 
     delete aead_c;
     delete aead_s;
@@ -191,7 +186,7 @@ int main(int argc, char** argv) {
 
     setup_protocol<NetIO>(io, ios, threads, party);
 
-    auto prot = (PADOParty<NetIO>*)(ProtocolExecution::prot_exec);
+    auto prot = (PrimusParty<NetIO>*)(ProtocolExecution::prot_exec);
     IKNP<NetIO>* cot = prot->ot;
     handshake_test<NetIO>(io, io_opt, cot, party);
     finalize_protocol();

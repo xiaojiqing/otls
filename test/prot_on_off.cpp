@@ -34,8 +34,8 @@ void full_protocol_offline() {
     hs_offline->compute_client_finished_msg();
     hs_offline->compute_server_finished_msg();
 
-    AEADOffline* aead_c_offline = new AEADOffline(hs_offline->client_write_key);
-    AEADOffline* aead_s_offline = new AEADOffline(hs_offline->server_write_key);
+    AEADOffline* aead_c_offline = new AEADOffline(hs_offline->client_write_key, hs_offline->client_write_iv);
+    AEADOffline* aead_s_offline = new AEADOffline(hs_offline->server_write_key, hs_offline->server_write_iv);
 
     RecordOffline* rd_offline = new RecordOffline();
 
@@ -51,7 +51,6 @@ void full_protocol_offline() {
 template <typename IO>
 void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int party) {
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-    //HandShake<NetIO>* hs = new HandShake<NetIO>(io, cot, group);
 
     EC_POINT* V = EC_POINT_new(group);
     EC_POINT* Tc = EC_POINT_new(group);
@@ -87,67 +86,44 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int part
     size_t aad_len = sizeof(aad);
     BIGNUM* pms = BN_new();
     BIGNUM* full_pms = BN_new();
-    unsigned char iv_c[12], iv_s[12];
+    unsigned char iv_c_oct[8], iv_s_oct[8];
 
-    // hs->compute_pms_offline(party);
-
-    auto rounds = io->rounds;
     auto start = emp::clock_start();
     if (party == BOB) {
-        hs->compute_pado_VA(V, Ts);
+        hs->compute_primus_VA(V, Ts);
     } else {
         hs->compute_client_VB(Tc, V, Ts);
     }
-    cout << "VA/VB rounds: " << io->rounds - rounds << endl;
-    rounds = io->rounds;
     hs->compute_pms_online(pms, V, party);
-    cout << "pms rounds: " << io->rounds - rounds << endl;
-    rounds = io->rounds;
     //hs->compute_master_key(pms, rc, 32, rs, 32);
 
     // Use session_hash instead of rc!
     hs->compute_extended_master_key(pms, rc, 32);
-    cout << "master key rounds: " << io->rounds - rounds << endl;
-    rounds = io->rounds;
     hs->compute_expansion_keys(rc, 32, rs, 32);
-    cout << "expansion key rounds: " << io->rounds - rounds << endl;
-    rounds = io->rounds;
 
     hs->compute_client_finished_msg(client_finished_label, client_finished_label_length, tau_c,
                                     32);
-    cout << "client finished rounds: " << io->rounds - rounds << endl;
-    rounds = io->rounds;
     hs->compute_server_finished_msg(server_finished_label, server_finished_label_length, tau_s,
                                     32);
-    cout << "server finished rounds: " << io->rounds - rounds << endl;
-    rounds = io->rounds;
 
     // padding the last 8 bytes of iv_c and iv_s according to TLS!
-    memcpy(iv_c, hs->client_write_iv, iv_length);
-    memset(iv_c + iv_length, 0x11, 8);
-    memcpy(iv_s, hs->server_write_iv, iv_length);
-    memset(iv_s + iv_length, 0x22, 8);
-    AEAD<IO>* aead_c = new AEAD<IO>(io, io_opt, cot, hs->client_write_key);
-    AEAD<IO>* aead_s = new AEAD<IO>(io, io_opt, cot, hs->server_write_key);
+    memset(iv_c_oct, 0x11, 8);
+    memset(iv_s_oct, 0x22, 8);
+    AEAD<IO>* aead_c = new AEAD<IO>(io, io_opt, cot, hs->client_write_key, hs->client_write_iv);
+    AEAD<IO>* aead_s = new AEAD<IO>(io, io_opt, cot, hs->server_write_key, hs->server_write_iv);
 
     Record<IO>* rd = new Record<IO>;
-    cout << "constructors rounds: " << io->rounds - rounds << endl;
-    rounds = io->rounds;
     unsigned char* finc_ctxt = new unsigned char[finished_msg_length];
     unsigned char* finc_tag = new unsigned char[tag_length];
     unsigned char* msg = new unsigned char[finished_msg_length];
 
     // Use correct message instead of hs->client_ufin!
     hs->encrypt_client_finished_msg(aead_c, finc_ctxt, finc_tag, hs->client_ufin, 12, aad,
-                                    aad_len, iv_c, 12, party);
+                                    aad_len, iv_c_oct, 8, party);
 
-    cout << "enc client finished rounds: " << io->rounds - rounds << endl;
-    rounds = io->rounds;
     // Use correct ciphertext instead of finc_ctxt!
     hs->decrypt_server_finished_msg(aead_s, msg, finc_ctxt, finished_msg_length, finc_tag, aad,
-                                    aad_len, iv_s, 12, party);
-    cout << "dec server finished rounds: " << io->rounds - rounds << endl;
-    // cout << "handshake time: " << emp::time_from(start) << " us" << endl;
+                                    aad_len, iv_s_oct, 8, party);
 
     unsigned char* cctxt = new unsigned char[QUERY_BYTE_LEN];
     unsigned char* ctag = new unsigned char[tag_length];
@@ -157,20 +133,21 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int part
     start = emp::clock_start();
 
     // the client encrypts the first message, and sends to the server.
-    rd->encrypt(aead_c, io, cctxt, ctag, cmsg, QUERY_BYTE_LEN, aad, aad_len, iv_c, 12, party);
-    // cout << "record time: " << emp::time_from(start) << " us" << endl;
+    rd->encrypt(aead_c, io, cctxt, ctag, cmsg, QUERY_BYTE_LEN, aad, aad_len, iv_c_oct, 8, party);
     // prove handshake in post-record phase.
     start = emp::clock_start();
     switch_to_zk();
     PostRecord<IO>* prd = new PostRecord<IO>(io, hs, aead_c, aead_s, rd, party);
     prd->reveal_pms(Ts);
     // Use correct finc_ctxt, fins_ctxt, iv_c, iv_s according to TLS!
-    prd->prove_and_check_handshake(finc_ctxt, finished_msg_length, finc_ctxt,
-                                   finished_msg_length, rc, 32, rs, 32, tau_c, 32, tau_s, 32,
-                                   iv_c, 12, iv_s, 12, rc, 32);
+    prd->prove_and_check_handshake_step1(rc, 32, rs, 32, tau_c, 32, tau_s, 32, rc, 32, true);
+    prd->prove_and_check_handshake_step2(finc_ctxt, finished_msg_length,
+                                         iv_c_oct, 8);
+    prd->prove_and_check_handshake_step3(finc_ctxt, finished_msg_length,
+                                         iv_s_oct, 8);
     Integer prd_cmsg, prd_cmsg2, prd_smsg, prd_smsg2, prd_cz0, prd_c2z0, prd_sz0, prd_s2z0;
-    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, QUERY_BYTE_LEN, iv_c, 12);
-    prd->prove_record_server_last(prd_smsg2, prd_s2z0, cctxt, RESPONSE_BYTE_LEN, iv_s, 12);
+    prd->prove_record_client(prd_cmsg, prd_cz0, cctxt, QUERY_BYTE_LEN, iv_c_oct, 8);
+    prd->prove_record_server_last(prd_smsg2, prd_s2z0, cctxt, RESPONSE_BYTE_LEN, iv_s_oct, 8);
 
     // Use correct finc_ctxt and fins_ctxt!
     prd->finalize_check(finc_ctxt, finc_tag, 12, aad, finc_ctxt, finc_tag, 12, aad, {prd_cz0},
@@ -179,7 +156,6 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int part
 
     sync_zk_gc<IO>();
     switch_to_gc();
-    // cout << "post record: " << emp::time_from(start) << " us" << endl;
     EC_POINT_free(V);
     EC_POINT_free(Tc);
     BN_free(t);
@@ -188,7 +164,6 @@ void full_protocol(HandShake<IO>* hs, IO* io, IO* io_opt, COT<IO>* cot, int part
     BN_free(full_pms);
     EC_POINT_free(Ts);
 
-    // delete hs;
     delete[] rc;
     delete[] rs;
     delete[] ufinc;
@@ -222,19 +197,16 @@ int main(int argc, char** argv) {
 
     auto start = emp::clock_start();
     auto comm = io->counter;
-    auto rounds = io->rounds;
     setup_protocol<NetIO>(io, ios, threads, party, true);
     // setup_protocol<NetIO>(io, ios, threads, party);
 
     cout << "setup time: " << emp::time_from(start) << " us" << endl;
     cout << "setup comm: " << io->counter << endl;
-    cout << "setup rounds: " << io->rounds << endl;
 
     start = clock_start();
     comm = io->counter;
-    rounds = io->rounds;
 
-    auto prot = (PADOParty<NetIO>*)(gc_prot_buf);
+    auto prot = (PrimusParty<NetIO>*)(gc_prot_buf);
     IKNP<NetIO>* cot = prot->ot;
     HandShake<NetIO>* hs = new HandShake<NetIO>(io, io_opt, cot, group);
 
@@ -244,15 +216,12 @@ int main(int argc, char** argv) {
     switch_to_online<NetIO>(party);
     cout << "offline time: " << emp::time_from(start) << " us" << endl;
     cout << "offline comm: " << io->counter - comm << endl;
-    cout << "offline rounds: " << io->rounds - rounds << endl;
 
     start = emp::clock_start();
     comm = io->counter;
-    rounds = io->rounds;
     full_protocol<NetIO>(hs, io, io_opt, cot, party);
     cout << "online time: " << emp::time_from(start) << " us" << endl;
     cout << "online comm: " << io->counter - comm << endl;
-    cout << "onlie rounds: " << io->rounds - rounds << endl;
 
     cout << "gc AND gates: " << dec << gc_circ_buf->num_and() << endl;
     cout << "zk AND gates: " << dec << zk_circ_buf->num_and() << endl;
@@ -284,6 +253,6 @@ int main(int argc, char** argv) {
     for (int i = 0; i < threads; i++) {
         delete ios[i];
     }
-    // delete io_opt;
+    delete io_opt;
     return 0;
 }

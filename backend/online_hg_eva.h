@@ -1,8 +1,10 @@
-#ifndef PADO_Online_HALFGATE_EVA_
-#define PADO_Online_HALFGATE_EVA_
+#ifndef PRIMUS_Online_HALFGATE_EVA_
+#define PRIMUS_Online_HALFGATE_EVA_
 #include "emp-tool/emp-tool.h"
 #include "backend/bn_utils.h"
 using namespace emp;
+
+/* Define the online evalutor of half-gate evaluator */
 template <typename T>
 class OnlineHalfGateEva : public CircuitExecution {
    public:
