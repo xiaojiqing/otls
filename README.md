@@ -53,3 +53,6 @@ All the test cases are located in the directory `test`.
     `./bin/example 1 12345 123 & ./bin/example 2 12345 124`
     
     because different parties need different numbers
+
+## Acknowledgment
+This repository is provided as a free resource for the community. You are welcome to use, modify, and distribute the code in accordance with the repository’s license. However, if you use this project in your own work, we ask that you acknowledge us by providing appropriate credit.
