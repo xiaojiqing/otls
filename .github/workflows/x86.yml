@@ -7,6 +7,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, macos-latest]
         build_type: [Debug, Release]
+        arch: [x86_64]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
