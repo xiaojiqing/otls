@@ -5,9 +5,8 @@ jobs:
   build_arm:
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-latest]
+        os: [ubuntu-22.04-arm, macos-latest]
         build_type: [Debug, Release]
-        arch: [arm64]
     runs-on: ${{matrix.os}}
     timeout-minutes: 30
     env:
