@@ -17,6 +17,8 @@ jobs:
     - name: install dependency
       run: |
         uname -a
+        dpkg --print-architecture
+        lscpu | grep Architecture
         git clone --recursive https://github.com/primus-labs/primus-emp
         cd primus-emp
         ./compile.sh $BUILD_TYPE
